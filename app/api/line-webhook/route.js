@@ -1,8 +1,9 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
+import { replyMessage } from "@/lib/line";
+import { getOrCreateUser } from "@/lib/users";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
-const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
 function isValidSignature(rawBody, signature) {
   const hash = crypto
@@ -12,15 +13,23 @@ function isValidSignature(rawBody, signature) {
   return hash === signature;
 }
 
-async function replyMessage(replyToken, messages) {
-  await fetch("https://api.line.me/v2/bot/message/reply", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${CHANNEL_ACCESS_TOKEN}`,
-    },
-    body: JSON.stringify({ replyToken, messages }),
-  });
+async function handleTextMessage(event) {
+  const lineUserId = event.source.userId;
+  const { user, isNew, freeCredit } = await getOrCreateUser(lineUserId);
+
+  if (isNew) {
+    await replyMessage(event.replyToken, [
+      {
+        type: "text",
+        text: `ยินดีต้อนรับครับ! เราแจกเครดิตฟรีให้ ${freeCredit} เครดิตเพื่อลองใช้งาน\nเครดิตคงเหลือของคุณ: ${user.wallet_balance}`,
+      },
+    ]);
+    return;
+  }
+
+  await replyMessage(event.replyToken, [
+    { type: "text", text: `เครดิตคงเหลือของคุณ: ${user.wallet_balance}` },
+  ]);
 }
 
 export async function POST(request) {
@@ -35,9 +44,7 @@ export async function POST(request) {
 
   for (const event of body.events) {
     if (event.type === "message" && event.message.type === "text") {
-      await replyMessage(event.replyToken, [
-        { type: "text", text: `บอทได้รับข้อความแล้ว: ${event.message.text}` },
-      ]);
+      await handleTextMessage(event);
     }
   }
 
