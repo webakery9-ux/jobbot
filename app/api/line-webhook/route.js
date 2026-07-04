@@ -41,7 +41,7 @@ async function handleDirectMessage(event) {
 
 async function handleGroupMessage(event) {
   const text = event.message.text.trim();
-  if (!text.toLowerCase().startsWith("/job")) return; // เงียบไว้ ไม่ตอบข้อความอื่นในกลุ่ม
+  if (!/^\/(job|งาน)/i.test(text)) return; // เงียบไว้ ไม่ตอบข้อความอื่นในกลุ่ม
 
   const { user: poster } = await getOrCreateUser(event.source.userId);
   const group = await getOrCreateGroup(event.source.groupId);
