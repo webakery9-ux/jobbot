@@ -131,12 +131,14 @@ async function handleDirectMessage(event) {
 
 async function handleGroupMessage(event) {
   const text = event.message.text.trim();
-  if (!/^\/(job|งาน)/i.test(text)) return; // เงียบไว้ ไม่ตอบข้อความอื่นในกลุ่ม
   if (!event.source.userId) return; // ไม่มี ID มาจริงๆ ทำอะไรไม่ได้ ปล่อยผ่าน
 
+  // ผูก user เข้ากับกลุ่มจากข้อความอะไรก็ได้ ไม่ใช่แค่ /job เพื่อให้รู้ว่าใครอยู่กลุ่มไหนบ้าง
   const { user: poster } = await getOrCreateUser(event.source.userId);
   const group = await getOrCreateGroup(event.source.groupId);
-  await linkUserToGroup(poster.id, group.id, "poster");
+  await linkUserToGroup(poster.id, group.id, "member");
+
+  if (!/^\/(job|งาน)/i.test(text)) return; // เงียบไว้ ไม่ตอบข้อความอื่นในกลุ่ม
 
   if (!(await canDoJobAction(poster))) {
     if (await shouldSendProfileReminder(poster.id, poster.profile_reminder_sent_at)) {
@@ -201,6 +203,17 @@ async function handleTextMessage(event) {
 async function handleJoin(event) {
   if (event.source.type !== "group") return;
   await replyMessage(event.replyToken, [{ type: "text", text: WELCOME_MESSAGE }]);
+}
+
+// มีคนเข้ากลุ่มใหม่ (ที่มีบอทอยู่แล้ว) ผูกกลุ่มให้ทันทีโดยไม่ต้องรอให้เขาพิมพ์อะไรก่อน
+async function handleMemberJoined(event) {
+  if (event.source.type !== "group") return;
+  const group = await getOrCreateGroup(event.source.groupId);
+  for (const member of event.joined?.members ?? []) {
+    if (!member.userId) continue;
+    const { user } = await getOrCreateUser(member.userId);
+    await linkUserToGroup(user.id, group.id, "member");
+  }
 }
 
 async function handlePostback(event) {
@@ -318,6 +331,8 @@ export async function POST(request) {
       await handlePostback(event);
     } else if (event.type === "join") {
       await handleJoin(event);
+    } else if (event.type === "memberJoined") {
+      await handleMemberJoined(event);
     }
   }
 

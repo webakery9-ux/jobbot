@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import liff from "@line/liff";
 
 const ACCENT = "#06C755";
-const VEHICLE_OPTIONS = ["", "เก๋ง", "SUV", "VAN", "รถตู้"];
+const VEHICLE_OPTIONS = ["", "เก๋ง", "SUV", "VAN"];
 
 export default function DashboardApp() {
   const [ready, setReady] = useState(false);
@@ -269,10 +269,11 @@ function PostJob({ lineUserId }) {
   );
 }
 
-function OpenJobs({ lineUserId }) {
+function OpenJobs({ lineUserId, setTab }) {
   const { data, loading, reload } = useDashboard(lineUserId, "jobs");
   const [claiming, setClaiming] = useState("");
   const [note, setNote] = useState("");
+  const [activeGroup, setActiveGroup] = useState("all");
 
   if (loading) return <Loading />;
   if (data && !data.profileCompleted) return <NeedProfile setTab={setTab} />;
@@ -299,9 +300,42 @@ function OpenJobs({ lineUserId }) {
     }
   }
 
-  const jobs = data?.jobs ?? [];
+  const allJobs = data?.jobs ?? [];
+
+  const groups = [];
+  const seen = new Set();
+  for (const job of allJobs) {
+    const gid = job.group?.id;
+    if (gid && !seen.has(gid)) {
+      seen.add(gid);
+      groups.push({ id: gid, name: job.group?.group_name || "กลุ่ม LINE" });
+    }
+  }
+
+  const jobs =
+    activeGroup === "all" ? allJobs : allJobs.filter((j) => j.group?.id === activeGroup);
+
   return (
     <div className="section">
+      {groups.length > 1 && (
+        <div className="tabs">
+          <button
+            className={`tab ${activeGroup === "all" ? "active" : ""}`}
+            onClick={() => setActiveGroup("all")}
+          >
+            ทั้งหมด
+          </button>
+          {groups.map((g) => (
+            <button
+              key={g.id}
+              className={`tab ${activeGroup === g.id ? "active" : ""}`}
+              onClick={() => setActiveGroup(g.id)}
+            >
+              {g.name}
+            </button>
+          ))}
+        </div>
+      )}
       {note && <p className="status ok">{note}</p>}
       {jobs.length === 0 && <p className="empty">ยังไม่มีงานเปิดอยู่ในกลุ่มของคุณ</p>}
       {jobs.map((job) => (
@@ -680,6 +714,9 @@ const styles = `
   .status { font-size: 14px; padding: 10px 12px; border-radius: 8px; margin: 0; }
   .status.ok { background: #E1F5EE; color: #0F6E56; }
   .status.err { background: #FCEBEB; color: #A32D2D; }
+  .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .tab { flex-shrink: 0; padding: 8px 16px; border-radius: 20px; border: 1px solid #DDD; background: #fff; font-size: 13px; color: #555; white-space: nowrap; }
+  .tab.active { background: ${ACCENT}; border-color: ${ACCENT}; color: #fff; font-weight: 700; }
   .job-card { background: #fff; border-radius: 14px; padding: 16px; position: relative; box-shadow: 0 1px 6px rgba(0,0,0,0.05); }
   .badge { position: absolute; top: 14px; right: 14px; background: #E24B4A; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
   .job-detail { font-size: 17px; font-weight: 700; margin: 0 0 6px; color: #222; }
