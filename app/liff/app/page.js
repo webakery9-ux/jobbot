@@ -786,7 +786,9 @@ function CompleteJob({ lineUserId, jobId }) {
         </label>
         {photo && <img src={photo} alt="preview" className="photo-preview" />}
         {error && <p className="status err">{error}</p>}
-        <button onClick={() => setPhase("confirm")}>ต่อไป</button>
+        <button className="claim-btn" onClick={() => setPhase("confirm")}>
+          ต่อไป
+        </button>
       </div>
     );
   }
@@ -798,7 +800,9 @@ function CompleteJob({ lineUserId, jobId }) {
         {note && <p className="empty small">หมายเหตุ: {note}</p>}
         {photo && <img src={photo} alt="preview" className="photo-preview" />}
         {error && <p className="status err">{error}</p>}
-        <button onClick={submit}>ยืนยันปิดงาน</button>
+        <button className="claim-btn" onClick={submit}>
+          ยืนยันปิดงาน
+        </button>
         <button className="ghost-btn" onClick={() => setPhase("form")}>
           แก้ไข
         </button>
@@ -860,7 +864,9 @@ function ReturnJob({ lineUserId, jobId }) {
           เครดิตที่จ่ายไปจะได้คืนทันที และงานจะกลับเข้ากลุ่มให้คนอื่นรับต่อ
         </p>
         {error && <p className="status err">{error}</p>}
-        <button onClick={submit}>ยืนยันคืนงาน</button>
+        <button className="danger-btn" onClick={submit}>
+          ยืนยันคืนงาน
+        </button>
         <button className="ghost-btn" onClick={close}>
           ยกเลิก
         </button>
@@ -1034,6 +1040,7 @@ const styles = `
   .link-btn { background: ${ACCENT}; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; border: none; font-size: 15px; }
   .msg { font-size: 16px; color: #444; }
   .ghost-btn { background: transparent; color: ${ACCENT}; border: 1px solid ${ACCENT}; border-radius: 10px; padding: 12px 20px; font-weight: 700; font-size: 15px; }
+  .danger-btn { background: #E24B4A; color: #fff; border: none; border-radius: 12px; padding: 14px; font-weight: 700; font-size: 16px; width: 100%; }
   .claim-note { text-align: center; color: #555; font-size: 14px; padding: 14px 16px 0; margin: 0; }
   .icon-big { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 700; color: #fff; }
   .icon-big.ok { background: ${ACCENT}; }
