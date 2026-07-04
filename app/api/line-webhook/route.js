@@ -70,9 +70,10 @@ async function handleGroupMessage(event) {
       detail: parsed.detail,
       wage: parsed.wage,
       paymentMethod: parsed.payment_method,
+      isUrgent: parsed.isUrgent,
     });
 
-    await replyMessage(event.replyToken, [buildJobCardMessage(job)]);
+    await replyMessage(event.replyToken, [buildJobCardMessage(job, poster)]);
   } catch (err) {
     if (err.message?.includes("INSUFFICIENT_CREDIT")) {
       await replyMessage(event.replyToken, [
