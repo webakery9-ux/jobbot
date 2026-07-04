@@ -11,6 +11,7 @@ export default function DashboardApp() {
   const [error, setError] = useState("");
   const [lineUserId, setLineUserId] = useState("");
   const [tab, setTab] = useState("home");
+  const [jobParam, setJobParam] = useState("");
 
   useEffect(() => {
     async function init() {
@@ -25,6 +26,7 @@ export default function DashboardApp() {
         const params = new URLSearchParams(window.location.search);
         const t = params.get("tab");
         if (t) setTab(t);
+        setJobParam(params.get("job") || "");
         setReady(true);
       } catch (err) {
         setError("เปิดหน้านี้ผ่านแอป LINE เท่านั้นครับ");
@@ -64,6 +66,7 @@ export default function DashboardApp() {
       {tab === "home" && <Home setTab={setTab} lineUserId={lineUserId} />}
       {tab === "post" && <PostJob lineUserId={lineUserId} setTab={setTab} />}
       {tab === "jobs" && <OpenJobs lineUserId={lineUserId} setTab={setTab} />}
+      {tab === "claim" && <Claim lineUserId={lineUserId} jobId={jobParam} />}
       {tab === "history" && <History lineUserId={lineUserId} />}
       {tab === "income" && <Income lineUserId={lineUserId} />}
       {tab === "profile" && <Profile lineUserId={lineUserId} setTab={setTab} />}
@@ -80,6 +83,7 @@ function tabTitle(tab) {
       home: "JobBotTH",
       post: "โพสต์งาน",
       jobs: "รับงาน",
+      claim: "รับงาน",
       history: "ประวัติงาน",
       income: "สรุปรายได้",
       profile: "ข้อมูลส่วนตัว",
@@ -383,7 +387,7 @@ function Income({ lineUserId }) {
   );
 }
 
-function Profile({ lineUserId, setTab }) {
+function Profile({ lineUserId, setTab, onSaved }) {
   const { data, loading } = useDashboard(lineUserId, "profile");
   const [form, setForm] = useState(null);
   const [status, setStatus] = useState(null);
@@ -412,6 +416,7 @@ function Profile({ lineUserId, setTab }) {
     if (res.ok) {
       setStatus({ ok: true, text: "บันทึกข้อมูลสำเร็จ" });
       setSaved({ ...form });
+      if (onSaved) onSaved();
     } else {
       setStatus({ ok: false, text: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง" });
     }
@@ -493,6 +498,132 @@ function Profile({ lineUserId, setTab }) {
         {saving ? "กำลังบันทึก..." : "บันทึกข้อมูล"}
       </button>
     </form>
+  );
+}
+
+function Claim({ lineUserId, jobId }) {
+  // phase: init | friend | profile | claiming | done
+  const [phase, setPhase] = useState("init");
+  const [addFriendUrl, setAddFriendUrl] = useState("#");
+  const [result, setResult] = useState(null);
+
+  const doClaim = useCallback(async () => {
+    setPhase("claiming");
+    const res = await fetch("/api/dashboard/claim-job", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineUserId, jobId }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setResult({
+        type: "success",
+        text: `รับงานสำเร็จ! ระบบส่งข้อมูลติดต่อให้ในแชท JobBotTH แล้ว\nเครดิตคงเหลือ ${d.balance}`,
+      });
+    } else if (res.status === 409) {
+      setResult({ type: "taken", text: "งานนี้ถูกท่านอื่นรับไปแล้วครับ" });
+    } else if (res.status === 402) {
+      setResult({ type: "credit", text: "เครดิตของคุณไม่พอสำหรับรับงานนี้" });
+    } else {
+      setResult({ type: "error", text: "เกิดข้อผิดพลาด กรุณาลองใหม่" });
+    }
+    setPhase("done");
+  }, [lineUserId, jobId]);
+
+  const start = useCallback(async () => {
+    setPhase("init");
+    const res = await fetch("/api/dashboard/ensure-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineUserId }),
+    });
+    const info = await res.json();
+    setAddFriendUrl(info.addFriendUrl || "#");
+
+    let isFriend = true;
+    try {
+      const fs = await liff.getFriendship();
+      isFriend = fs.friendFlag;
+    } catch (e) {
+      isFriend = true; // ตรวจไม่ได้ ถือว่าผ่าน ไม่บล็อกการใช้งาน
+    }
+
+    if (!isFriend) {
+      setPhase("friend");
+      return;
+    }
+    if (!info.profileCompleted) {
+      setPhase("profile");
+      return;
+    }
+    doClaim();
+  }, [lineUserId, doClaim]);
+
+  useEffect(() => {
+    if (jobId) start();
+  }, [jobId, start]);
+
+  function close() {
+    try {
+      liff.closeWindow();
+    } catch (e) {}
+  }
+
+  if (!jobId) {
+    return (
+      <div className="section center-pad">
+        <p className="empty">ไม่พบงานที่ต้องการรับ</p>
+      </div>
+    );
+  }
+
+  if (phase === "init" || phase === "claiming") {
+    return (
+      <div className="section center-pad">
+        <div className="spinner" />
+        <p className="empty">{phase === "claiming" ? "กำลังรับงาน..." : "กำลังตรวจสอบ..."}</p>
+      </div>
+    );
+  }
+
+  if (phase === "friend") {
+    return (
+      <div className="section center-pad">
+        <p className="empty">
+          กรุณาเพิ่มเพื่อน JobBotTH ก่อนรับงานครับ
+          <br />
+          (จำเป็นสำหรับรับข้อมูลติดต่อและการแจ้งเตือน)
+        </p>
+        <a className="link-btn" href={addFriendUrl}>
+          เพิ่มเพื่อน JobBotTH
+        </a>
+        <button className="ghost-btn" onClick={start}>
+          เพิ่มเพื่อนแล้ว กดต่อ
+        </button>
+      </div>
+    );
+  }
+
+  if (phase === "profile") {
+    return (
+      <div>
+        <p className="claim-note">กรอกข้อมูลเพื่อรับงานต่อได้เลยครับ</p>
+        <Profile lineUserId={lineUserId} onSaved={doClaim} />
+      </div>
+    );
+  }
+
+  // phase === "done"
+  return (
+    <div className="section center-pad">
+      <div className={`icon-big ${result.type === "success" ? "ok" : "warn"}`}>
+        {result.type === "success" ? "✓" : "!"}
+      </div>
+      <p className="result-text">{result.text}</p>
+      <button className="link-btn" onClick={close}>
+        ปิดหน้านี้
+      </button>
+    </div>
   );
 }
 
@@ -583,6 +714,12 @@ const styles = `
   .empty.small { padding: 4px; font-size: 14px; }
   .link-btn { background: ${ACCENT}; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; border: none; font-size: 15px; }
   .msg { font-size: 16px; color: #444; }
+  .ghost-btn { background: transparent; color: ${ACCENT}; border: 1px solid ${ACCENT}; border-radius: 10px; padding: 12px 20px; font-weight: 700; font-size: 15px; }
+  .claim-note { text-align: center; color: #555; font-size: 14px; padding: 14px 16px 0; margin: 0; }
+  .icon-big { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 700; color: #fff; }
+  .icon-big.ok { background: ${ACCENT}; }
+  .icon-big.warn { background: #E24B4A; }
+  .result-text { text-align: center; font-size: 16px; color: #333; white-space: pre-wrap; margin: 0; }
   .spinner { width: 32px; height: 32px; border: 3px solid #E5E5E5; border-top-color: ${ACCENT}; border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 `;
