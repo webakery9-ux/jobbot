@@ -12,6 +12,7 @@ import {
   parseJobCommand,
   postJob,
   buildJobCardMessage,
+  buildJobPostedCard,
   claimJob,
   getJobWithPoster,
   formatThaiDateTime,
@@ -167,16 +168,11 @@ async function handleGroupMessage(event) {
     await saveJobQuoteToken(job.id, quoteToken);
 
     const balance = await getUserBalance(poster.id);
+    const noticeText = (creditSuffix(balance) + profileReminder(poster)).trim();
     await notifyUser({
       user: poster,
       lineGroupId: event.source.groupId,
-      messages: [
-        buildJobCardMessage(job, poster, { showClaimButton: false }),
-        {
-          type: "text",
-          text: `เปิดงานสำเร็จ${creditSuffix(balance)}${profileReminder(poster)}`,
-        },
-      ],
+      messages: [buildJobPostedCard(job, noticeText)],
       fallbackText: `เปิดงาน "${job.detail}" สำเร็จครับ${profileReminder(poster)}`,
     });
   } catch (err) {
