@@ -18,6 +18,7 @@ import {
   displayNameOf,
   buildGroupClaimedMessage,
   buildClaimedActionsCard,
+  buildLinkButtonMessage,
   saveJobQuoteToken,
 } from "@/lib/jobs";
 
@@ -278,7 +279,6 @@ async function handlePostback(event) {
           `✅ คุณได้รับงานนี้แล้ว!\n` +
           `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
           `ผู้จ้างงาน: ${personLine(poster)}\n${formatThaiDateTime(claim.claimed_at)}` +
-          (chatLink ? `\n\n💬 เปิดแชทคุยกับผู้จ้างงาน: ${chatLink}` : "") +
           creditSuffix(claimerBalance) +
           profileReminder(claimer),
       },
@@ -293,18 +293,30 @@ async function handlePostback(event) {
   await notifyUser({
     user: poster,
     lineGroupId: job.group?.line_group_id,
-    messages: [
-      {
-        type: "text",
-        text:
-          `🎉 มีคนรับงานแล้ว!\n` +
-          `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
-          `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
-          (chatLink ? `\n\n💬 เปิดแชทคุยกับผู้รับงาน: ${chatLink}` : "") +
-          creditSuffix(posterBalance) +
-          profileReminder(poster),
-      },
-    ],
+    messages: chatLink
+      ? [
+          {
+            type: "text",
+            text:
+              `🎉 มีคนรับงานแล้ว!\n` +
+              `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
+              `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
+              creditSuffix(posterBalance) +
+              profileReminder(poster),
+          },
+          buildLinkButtonMessage("เปิดแชทคุยกับผู้รับงาน", "💬 เปิดแชท", chatLink),
+        ]
+      : [
+          {
+            type: "text",
+            text:
+              `🎉 มีคนรับงานแล้ว!\n` +
+              `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
+              `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
+              creditSuffix(posterBalance) +
+              profileReminder(poster),
+          },
+        ],
     fallbackText: `งาน "${job.detail}" มีคนรับแล้วครับ (ส่งข้อมูลติดต่อไม่ได้เพราะยังไม่ได้เพิ่มเพื่อนบอท)${profileReminder(
       poster
     )}`,

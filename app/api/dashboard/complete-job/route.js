@@ -5,6 +5,7 @@ import {
   getActiveClaimForUser,
   getJobWithPoster,
   displayNameOf,
+  buildLinkButtonMessage,
 } from "@/lib/jobs";
 import { uploadJobPhoto } from "@/lib/storage";
 import { pushMessage } from "@/lib/line";
@@ -52,10 +53,9 @@ export async function POST(request) {
       },
     ];
     if (link) {
-      messages.push({
-        type: "text",
-        text: `📋 ดูรายละเอียดการปิดงาน: ${link}`,
-      });
+      messages.push(
+        buildLinkButtonMessage("ดูรายละเอียดการปิดงาน", "📋 ดูรายละเอียด", link)
+      );
     }
     await pushMessage(job.poster.line_user_id, messages);
   }
