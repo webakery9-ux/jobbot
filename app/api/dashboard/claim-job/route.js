@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
 import { getUserByLineId } from "@/lib/dashboard";
+import { getOrCreateUser, ensureDisplayName } from "@/lib/users";
 import { claimJob, getJobWithPoster } from "@/lib/jobs";
 import { sendMatchNotifications } from "@/lib/notify";
 
 export async function POST(request) {
-  const { lineUserId, jobId } = await request.json();
+  const { lineUserId, jobId, displayName } = await request.json();
 
   if (!lineUserId || !jobId) {
     return NextResponse.json({ error: "missing fields" }, { status: 400 });
   }
 
-  const user = await getUserByLineId(lineUserId);
-  if (!user) return NextResponse.json({ error: "user not found" }, { status: 404 });
+  const { user: created } = await getOrCreateUser(lineUserId);
+  const user = await ensureDisplayName(created, displayName);
+
   if (!user.profile_completed) {
     return NextResponse.json({ error: "profile required" }, { status: 403 });
   }

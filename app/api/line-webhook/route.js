@@ -221,8 +221,6 @@ async function handlePostback(event) {
   const jobId = params.get("job_id");
   const { user: claimer } = await getOrCreateUser(event.source.userId);
 
-  // การ์ดใหม่ใช้ปุ่ม LIFF จัดการเรื่องนี้แล้ว ส่วน postback (การ์ดเก่า) ถ้ายังไม่พร้อม
-  // ให้เงียบไว้ ไม่เด้งข้อความในกลุ่ม (กัน spam ในกลุ่มใหญ่)
   if (!(await canDoJobAction(claimer))) {
     return;
   }

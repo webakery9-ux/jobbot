@@ -527,7 +527,7 @@ function Claim({ lineUserId, displayName, jobId }) {
     const res = await fetch("/api/dashboard/claim-job", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lineUserId, jobId }),
+      body: JSON.stringify({ lineUserId, jobId, displayName }),
     });
     if (res.ok) {
       const d = await res.json();
@@ -535,48 +535,38 @@ function Claim({ lineUserId, displayName, jobId }) {
         type: "success",
         text: `รับงานสำเร็จ! ระบบส่งข้อมูลติดต่อให้ในแชท JobBotTH แล้ว\nเครดิตคงเหลือ ${d.balance}`,
       });
+      setPhase("done");
+    } else if (res.status === 403) {
+      // ยังไม่กรอกข้อมูล - เด้งหน้ากรอกในตัว กรอกเสร็จรับงานต่อทันที
+      setPhase("profile");
     } else if (res.status === 409) {
       setResult({ type: "taken", text: "งานนี้ถูกท่านอื่นรับไปแล้วครับ" });
+      setPhase("done");
     } else if (res.status === 402) {
       setResult({ type: "credit", text: "เครดิตของคุณไม่พอสำหรับรับงานนี้" });
+      setPhase("done");
     } else {
       setResult({ type: "error", text: "เกิดข้อผิดพลาด กรุณาลองใหม่" });
+      setPhase("done");
     }
-    setPhase("done");
-  }, [lineUserId, jobId]);
+  }, [lineUserId, jobId, displayName]);
 
-  const start = useCallback(async () => {
-    setPhase("init");
-    const res = await fetch("/api/dashboard/ensure-user", {
+  // เผื่อไว้ใช้โชว์ปุ่มเพิ่มเพื่อนบนหน้าสำเร็จ (ไม่บล็อกการรับงาน ยิงคู่ขนานไปเลย)
+  useEffect(() => {
+    if (!lineUserId) return;
+    fetch("/api/dashboard/ensure-user", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lineUserId, displayName }),
-    });
-    const info = await res.json();
-    setAddFriendUrl(info.addFriendUrl || "#");
-
-    let isFriend = true;
-    try {
-      const fs = await liff.getFriendship();
-      isFriend = fs.friendFlag;
-    } catch (e) {
-      isFriend = true; // ตรวจไม่ได้ ถือว่าผ่าน ไม่บล็อกการใช้งาน
-    }
-
-    if (!isFriend) {
-      setPhase("friend");
-      return;
-    }
-    if (!info.profileCompleted) {
-      setPhase("profile");
-      return;
-    }
-    doClaim();
-  }, [lineUserId, displayName, doClaim]);
+    })
+      .then((r) => r.json())
+      .then((info) => setAddFriendUrl(info.addFriendUrl || "#"))
+      .catch(() => {});
+  }, [lineUserId, displayName]);
 
   useEffect(() => {
-    if (jobId) start();
-  }, [jobId, start]);
+    if (jobId && lineUserId) doClaim();
+  }, [jobId, lineUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function close() {
     try {
@@ -601,29 +591,11 @@ function Claim({ lineUserId, displayName, jobId }) {
     );
   }
 
-  if (phase === "friend") {
-    return (
-      <div className="section center-pad">
-        <p className="empty">
-          กรุณาเพิ่มเพื่อน JobBotTH ก่อนรับงานครับ
-          <br />
-          (จำเป็นสำหรับรับข้อมูลติดต่อและการแจ้งเตือน)
-        </p>
-        <a className="link-btn" href={addFriendUrl}>
-          เพิ่มเพื่อน JobBotTH
-        </a>
-        <button className="ghost-btn" onClick={start}>
-          เพิ่มเพื่อนแล้ว กดต่อ
-        </button>
-      </div>
-    );
-  }
-
   if (phase === "profile") {
     return (
       <div>
         <p className="claim-note">กรอกข้อมูลเพื่อรับงานต่อได้เลยครับ</p>
-        <Profile lineUserId={lineUserId} onSaved={doClaim} />
+        <Profile lineUserId={lineUserId} displayName={displayName} onSaved={doClaim} />
       </div>
     );
   }
@@ -635,6 +607,11 @@ function Claim({ lineUserId, displayName, jobId }) {
         {result.type === "success" ? "✓" : "!"}
       </div>
       <p className="result-text">{result.text}</p>
+      {result.type === "success" && addFriendUrl !== "#" && (
+        <a className="ghost-btn" href={addFriendUrl}>
+          เพิ่มเพื่อน JobBotTH (รับการแจ้งเตือนในอนาคต)
+        </a>
+      )}
       <button className="link-btn" onClick={close}>
         ปิดหน้านี้
       </button>
