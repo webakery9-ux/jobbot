@@ -17,6 +17,7 @@ import {
   formatThaiDateTime,
   displayNameOf,
   buildGroupClaimedMessage,
+  buildClaimedActionsCard,
   saveJobQuoteToken,
 } from "@/lib/jobs";
 
@@ -281,6 +282,7 @@ async function handlePostback(event) {
           creditSuffix(claimerBalance) +
           profileReminder(claimer),
       },
+      buildClaimedActionsCard(job),
     ],
     fallbackText: `คุณได้รับงาน "${job.detail}" แล้วครับ (ส่งข้อมูลติดต่อไม่ได้เพราะยังไม่ได้เพิ่มเพื่อนบอท)${profileReminder(
       claimer

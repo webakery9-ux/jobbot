@@ -28,6 +28,9 @@ export async function POST(request) {
     if (err.message?.includes("INSUFFICIENT_CREDIT")) {
       return NextResponse.json({ error: "insufficient credit" }, { status: 402 });
     }
+    if (err.message?.includes("HAS_ACTIVE_JOB")) {
+      return NextResponse.json({ error: "has active job" }, { status: 409 });
+    }
     throw err;
   }
 

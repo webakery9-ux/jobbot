@@ -71,6 +71,9 @@ export default function DashboardApp() {
       {tab === "claim" && (
         <Claim lineUserId={lineUserId} displayName={displayName} jobId={jobParam} />
       )}
+      {tab === "complete" && <CompleteJob lineUserId={lineUserId} jobId={jobParam} />}
+      {tab === "return" && <ReturnJob lineUserId={lineUserId} jobId={jobParam} />}
+      {tab === "job-detail" && <JobDetail jobId={jobParam} />}
       {tab === "history" && <History lineUserId={lineUserId} />}
       {tab === "income" && <Income lineUserId={lineUserId} />}
       {tab === "profile" && (
@@ -90,6 +93,9 @@ function tabTitle(tab) {
       post: "โพสต์งาน",
       jobs: "รับงาน",
       claim: "รับงาน",
+      complete: "จบงาน",
+      return: "คืนงาน",
+      "job-detail": "รายละเอียดปิดงาน",
       history: "ประวัติงาน",
       income: "สรุปรายได้",
       profile: "ข้อมูลส่วนตัว",
@@ -291,7 +297,12 @@ function OpenJobs({ lineUserId, setTab }) {
       setNote("รับงานสำเร็จ! ดูรายละเอียดในแชท JobBotTH");
       reload();
     } else if (res.status === 409) {
-      setNote("งานนี้ถูกรับไปแล้ว");
+      const d = await res.json().catch(() => ({}));
+      setNote(
+        d.error === "has active job"
+          ? "คุณมีงานที่ยังไม่เสร็จอยู่ ต้องจบหรือคืนงานเดิมก่อนถึงจะรับงานใหม่ได้"
+          : "งานนี้ถูกรับไปแล้ว"
+      );
       reload();
     } else if (res.status === 402) {
       setNote("เครดิตของคุณไม่พอ");
@@ -574,7 +585,14 @@ function Claim({ lineUserId, displayName, jobId }) {
       // ยังไม่กรอกข้อมูล - เด้งหน้ากรอกในตัว กรอกเสร็จรับงานต่อทันที
       setPhase("profile");
     } else if (res.status === 409) {
-      setResult({ type: "taken", text: "งานนี้ถูกท่านอื่นรับไปแล้วครับ" });
+      const d = await res.json().catch(() => ({}));
+      setResult({
+        type: "taken",
+        text:
+          d.error === "has active job"
+            ? "คุณมีงานที่ยังไม่เสร็จอยู่\nต้องจบหรือคืนงานเดิมก่อนถึงจะรับงานใหม่ได้ครับ"
+            : "งานนี้ถูกท่านอื่นรับไปแล้วครับ",
+      });
       setPhase("done");
     } else if (res.status === 402) {
       setResult({ type: "credit", text: "เครดิตของคุณไม่พอสำหรับรับงานนี้" });
@@ -653,6 +671,233 @@ function Claim({ lineUserId, displayName, jobId }) {
   );
 }
 
+// ย่อรูปก่อนอัปโหลด กันไฟล์ใหญ่เกิน (กล้องมือถือหลาย MB)
+function resizeImageFile(file, maxWidth = 1024, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function CompleteJob({ lineUserId, jobId }) {
+  const [phase, setPhase] = useState("form");
+  const [note, setNote] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const [error, setError] = useState("");
+
+  async function handlePhoto(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file);
+      setPhoto(dataUrl);
+    } catch (err) {
+      setError("อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  async function submit() {
+    setPhase("submitting");
+    const res = await fetch("/api/dashboard/complete-job", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineUserId, jobId, note, photoBase64: photo }),
+    });
+    if (res.ok) {
+      setPhase("done");
+    } else {
+      setError("ปิดงานไม่สำเร็จ ลองใหม่อีกครั้ง");
+      setPhase("confirm");
+    }
+  }
+
+  function close() {
+    try {
+      liff.closeWindow();
+    } catch (e) {}
+  }
+
+  if (phase === "form") {
+    return (
+      <div className="section">
+        <label className="field">
+          <span className="field-label">ส่งลูกค้าเรียบร้อย (หมายเหตุ)</span>
+          <textarea
+            rows={3}
+            placeholder="เช่น ส่งของถึงมือลูกค้าแล้ว"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span className="field-label">ถ่ายรูปยืนยัน (ถ้ามี)</span>
+          <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} />
+        </label>
+        {photo && <img src={photo} alt="preview" className="photo-preview" />}
+        {error && <p className="status err">{error}</p>}
+        <button onClick={() => setPhase("confirm")}>ต่อไป</button>
+      </div>
+    );
+  }
+
+  if (phase === "confirm") {
+    return (
+      <div className="section center-pad">
+        <p className="claim-note">ยืนยันปิดงานนี้ใช่ไหมครับ?</p>
+        {note && <p className="empty small">หมายเหตุ: {note}</p>}
+        {photo && <img src={photo} alt="preview" className="photo-preview" />}
+        {error && <p className="status err">{error}</p>}
+        <button onClick={submit}>ยืนยันปิดงาน</button>
+        <button className="ghost-btn" onClick={() => setPhase("form")}>
+          แก้ไข
+        </button>
+      </div>
+    );
+  }
+
+  if (phase === "submitting") {
+    return (
+      <div className="section center-pad">
+        <div className="spinner" />
+        <p className="empty">กำลังปิดงาน...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="section center-pad">
+      <div className="icon-big ok">✓</div>
+      <p className="result-text">ปิดงานสำเร็จ! แจ้งผู้เปิดงานเรียบร้อยแล้ว</p>
+      <button className="link-btn" onClick={close}>
+        ปิดหน้านี้
+      </button>
+    </div>
+  );
+}
+
+function ReturnJob({ lineUserId, jobId }) {
+  const [phase, setPhase] = useState("confirm");
+  const [error, setError] = useState("");
+
+  async function submit() {
+    setPhase("submitting");
+    const res = await fetch("/api/dashboard/return-job", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineUserId, jobId }),
+    });
+    if (res.ok) {
+      setPhase("done");
+    } else {
+      setError("คืนงานไม่สำเร็จ ลองใหม่อีกครั้ง");
+      setPhase("confirm");
+    }
+  }
+
+  function close() {
+    try {
+      liff.closeWindow();
+    } catch (e) {}
+  }
+
+  if (phase === "confirm") {
+    return (
+      <div className="section center-pad">
+        <p className="claim-note">
+          ยืนยันคืนงานนี้ใช่ไหมครับ?
+          <br />
+          เครดิตที่จ่ายไปจะได้คืนทันที และงานจะกลับเข้ากลุ่มให้คนอื่นรับต่อ
+        </p>
+        {error && <p className="status err">{error}</p>}
+        <button onClick={submit}>ยืนยันคืนงาน</button>
+        <button className="ghost-btn" onClick={close}>
+          ยกเลิก
+        </button>
+      </div>
+    );
+  }
+
+  if (phase === "submitting") {
+    return (
+      <div className="section center-pad">
+        <div className="spinner" />
+        <p className="empty">กำลังคืนงาน...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="section center-pad">
+      <div className="icon-big ok">✓</div>
+      <p className="result-text">คืนงานสำเร็จ! เครดิตคืนให้แล้วครับ</p>
+      <button className="link-btn" onClick={close}>
+        ปิดหน้านี้
+      </button>
+    </div>
+  );
+}
+
+function JobDetail({ jobId }) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    if (!jobId) return;
+    fetch(`/api/dashboard/job-detail?jobId=${jobId}`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => setData({ error: true }));
+  }, [jobId]);
+
+  if (!data) return <Loading />;
+  if (data.error) return <div className="section center-pad"><p className="empty">ไม่พบข้อมูล</p></div>;
+
+  const claim = data.claim;
+  return (
+    <div className="section">
+      <div className="profile-summary">
+        <p className="summary-head">{data.detail}</p>
+        <div className="summary-row">
+          <span>ค่าจ้าง</span>
+          <strong>{data.wage} บาท</strong>
+        </div>
+        <div className="summary-row">
+          <span>ผู้รับงาน</span>
+          <strong>{claim?.claimer?.display_name ?? "-"}</strong>
+        </div>
+        {claim?.claimer?.phone && (
+          <div className="summary-row">
+            <span>เบอร์ติดต่อ</span>
+            <strong>{claim.claimer.phone}</strong>
+          </div>
+        )}
+        {claim?.delivery_note && (
+          <div className="summary-row">
+            <span>หมายเหตุ</span>
+            <strong>{claim.delivery_note}</strong>
+          </div>
+        )}
+      </div>
+      {claim?.delivery_photo_url && (
+        <img src={claim.delivery_photo_url} alt="delivery" className="photo-preview" />
+      )}
+    </div>
+  );
+}
+
 function ComingSoon({ title }) {
   return (
     <div className="section center-pad">
@@ -705,8 +950,9 @@ const styles = `
   .grid-label { font-size: 15px; font-weight: 600; color: #333; }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field-label { font-size: 13px; color: #666; font-weight: 600; }
-  input, select { width: 100%; padding: 12px 14px; font-size: 15px; border: 1px solid #DDD; border-radius: 10px; background: #fff; box-sizing: border-box; outline: none; }
-  input:focus, select:focus { border-color: ${ACCENT}; }
+  input, select, textarea { width: 100%; padding: 12px 14px; font-size: 15px; border: 1px solid #DDD; border-radius: 10px; background: #fff; box-sizing: border-box; outline: none; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { border-color: ${ACCENT}; }
+  .photo-preview { width: 100%; border-radius: 10px; margin-top: 8px; }
   .checkbox { display: flex; align-items: center; gap: 8px; font-size: 15px; }
   .checkbox input { width: auto; }
   button[type="submit"], .claim-btn { padding: 14px; font-size: 16px; font-weight: 700; color: #fff; background: ${ACCENT}; border: none; border-radius: 12px; }
