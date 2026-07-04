@@ -125,20 +125,32 @@ function tabTitle(tab) {
   );
 }
 
+// เก็บผลลัพธ์ล่าสุดของแต่ละแท็บไว้ในหน่วยความจำ (อยู่ได้ตลอดที่หน้า LIFF ยังเปิดอยู่)
+// พอกลับมาแท็บเดิมจะโชว์ข้อมูลเก่าทันที ไม่กระพริบจอโหลด แล้วค่อยรีเฟรชเงียบๆ เบื้องหลัง
+const dashboardCache = new Map();
+
 function useDashboard(lineUserId, section) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `${lineUserId}:${section}`;
+  const [data, setData] = useState(() => dashboardCache.get(cacheKey) ?? null);
+  const [loading, setLoading] = useState(!dashboardCache.has(cacheKey));
+
   const reload = useCallback(async () => {
-    setLoading(true);
+    if (!dashboardCache.has(cacheKey)) setLoading(true);
     const res = await fetch(
       `/api/dashboard?lineUserId=${lineUserId}&section=${section}`
     );
-    if (res.ok) setData(await res.json());
+    if (res.ok) {
+      const json = await res.json();
+      dashboardCache.set(cacheKey, json);
+      setData(json);
+    }
     setLoading(false);
-  }, [lineUserId, section]);
+  }, [lineUserId, section, cacheKey]);
+
   useEffect(() => {
     reload();
   }, [reload]);
+
   return { data, loading, reload };
 }
 
