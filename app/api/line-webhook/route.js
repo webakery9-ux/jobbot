@@ -99,14 +99,27 @@ const WELCOME_MESSAGE =
   "/งาน ด่วน สุขุมวิท-พัทยา 1000 ปลายทาง\n" +
   "/งาน ด่วน นานา-พัทยา 1000 เก็บลูกค้า";
 
+const COMING_SOON_FEATURES = ["รับงาน", "โพสต์งาน", "ประวัติงาน", "สรุปรายได้", "เติมเครดิต"];
+
 async function handleDirectMessage(event) {
   const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
+  const text = event.message.text.trim();
 
   if (isNew) {
     await replyMessage(event.replyToken, [
       {
         type: "text",
         text: `ยินดีต้อนรับครับ! เราแจกเครดิตฟรีให้ ${freeCredit} เครดิตเพื่อลองใช้งาน\nเครดิตคงเหลือของคุณ: ${user.wallet_balance}`,
+      },
+    ]);
+    return;
+  }
+
+  if (COMING_SOON_FEATURES.includes(text)) {
+    await replyMessage(event.replyToken, [
+      {
+        type: "text",
+        text: `ฟีเจอร์ "${text}" กำลังพัฒนาอยู่ครับ เร็วๆ นี้จะพร้อมใช้งาน 🙏`,
       },
     ]);
     return;
