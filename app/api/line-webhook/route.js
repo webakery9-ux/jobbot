@@ -29,6 +29,11 @@ function profileFormUrl() {
   return liffId ? `https://liff.line.me/${liffId}` : null;
 }
 
+function chatUrl(jobId) {
+  const liffId = process.env.NEXT_PUBLIC_CHAT_LIFF_ID;
+  return liffId ? `https://liff.line.me/${liffId}/${jobId}` : null;
+}
+
 function creditSuffix(balance) {
   let text = `\n\nเครดิตคงเหลือของคุณ: ${balance}`;
   if (balance <= LOW_CREDIT_THRESHOLD) {
@@ -242,6 +247,7 @@ async function handlePostback(event) {
   const poster = job.poster;
 
   const claimerBalance = await getUserBalance(claimer.id);
+  const chatLink = chatUrl(job.id);
   await notifyUser({
     user: claimer,
     lineGroupId: event.source.groupId,
@@ -252,6 +258,7 @@ async function handlePostback(event) {
           `✅ คุณได้รับงานนี้แล้ว!\n` +
           `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
           `ผู้จ้างงาน: ${personLine(poster)}\n${formatThaiDateTime(claim.claimed_at)}` +
+          (chatLink ? `\n\n💬 เปิดแชทคุยกับผู้จ้างงาน: ${chatLink}` : "") +
           creditSuffix(claimerBalance) +
           profileReminder(claimer),
       },
@@ -272,6 +279,7 @@ async function handlePostback(event) {
           `🎉 มีคนรับงานแล้ว!\n` +
           `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
           `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
+          (chatLink ? `\n\n💬 เปิดแชทคุยกับผู้รับงาน: ${chatLink}` : "") +
           creditSuffix(posterBalance) +
           profileReminder(poster),
       },
