@@ -10,6 +10,7 @@ export default function DashboardApp() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [lineUserId, setLineUserId] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [tab, setTab] = useState("home");
   const [jobParam, setJobParam] = useState("");
 
@@ -23,6 +24,7 @@ export default function DashboardApp() {
         }
         const profile = await liff.getProfile();
         setLineUserId(profile.userId);
+        setDisplayName(profile.displayName || "");
         const params = new URLSearchParams(window.location.search);
         const t = params.get("tab");
         if (t) setTab(t);
@@ -66,10 +68,14 @@ export default function DashboardApp() {
       {tab === "home" && <Home setTab={setTab} lineUserId={lineUserId} />}
       {tab === "post" && <PostJob lineUserId={lineUserId} setTab={setTab} />}
       {tab === "jobs" && <OpenJobs lineUserId={lineUserId} setTab={setTab} />}
-      {tab === "claim" && <Claim lineUserId={lineUserId} jobId={jobParam} />}
+      {tab === "claim" && (
+        <Claim lineUserId={lineUserId} displayName={displayName} jobId={jobParam} />
+      )}
       {tab === "history" && <History lineUserId={lineUserId} />}
       {tab === "income" && <Income lineUserId={lineUserId} />}
-      {tab === "profile" && <Profile lineUserId={lineUserId} setTab={setTab} />}
+      {tab === "profile" && (
+        <Profile lineUserId={lineUserId} displayName={displayName} setTab={setTab} />
+      )}
       {tab === "credit" && <ComingSoon title="เติมเครดิต" />}
 
       <style jsx>{styles}</style>
@@ -387,7 +393,7 @@ function Income({ lineUserId }) {
   );
 }
 
-function Profile({ lineUserId, setTab, onSaved }) {
+function Profile({ lineUserId, displayName, setTab, onSaved }) {
   const { data, loading } = useDashboard(lineUserId, "profile");
   const [form, setForm] = useState(null);
   const [status, setStatus] = useState(null);
@@ -410,7 +416,7 @@ function Profile({ lineUserId, setTab, onSaved }) {
     const res = await fetch("/api/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lineUserId, ...form }),
+      body: JSON.stringify({ lineUserId, displayName, ...form }),
     });
     setSaving(false);
     if (res.ok) {
@@ -501,7 +507,7 @@ function Profile({ lineUserId, setTab, onSaved }) {
   );
 }
 
-function Claim({ lineUserId, jobId }) {
+function Claim({ lineUserId, displayName, jobId }) {
   // phase: init | friend | profile | claiming | done
   const [phase, setPhase] = useState("init");
   const [addFriendUrl, setAddFriendUrl] = useState("#");
@@ -535,7 +541,7 @@ function Claim({ lineUserId, jobId }) {
     const res = await fetch("/api/dashboard/ensure-user", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lineUserId }),
+      body: JSON.stringify({ lineUserId, displayName }),
     });
     const info = await res.json();
     setAddFriendUrl(info.addFriendUrl || "#");
@@ -557,7 +563,7 @@ function Claim({ lineUserId, jobId }) {
       return;
     }
     doClaim();
-  }, [lineUserId, doClaim]);
+  }, [lineUserId, displayName, doClaim]);
 
   useEffect(() => {
     if (jobId) start();
