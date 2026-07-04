@@ -54,6 +54,11 @@ export default function DashboardApp() {
     );
   }
 
+  function goTo(nextTab, jobId) {
+    setJobParam(jobId || "");
+    setTab(nextTab);
+  }
+
   return (
     <div className="wrap">
       <div className="topbar">
@@ -74,7 +79,7 @@ export default function DashboardApp() {
       {tab === "complete" && <CompleteJob lineUserId={lineUserId} jobId={jobParam} />}
       {tab === "return" && <ReturnJob lineUserId={lineUserId} jobId={jobParam} />}
       {tab === "job-detail" && <JobDetail jobId={jobParam} />}
-      {tab === "history" && <History lineUserId={lineUserId} />}
+      {tab === "history" && <History lineUserId={lineUserId} goTo={goTo} />}
       {tab === "income" && <Income lineUserId={lineUserId} />}
       {tab === "profile" && (
         <Profile lineUserId={lineUserId} displayName={displayName} setTab={setTab} />
@@ -385,7 +390,7 @@ function OpenJobs({ lineUserId, setTab }) {
   );
 }
 
-function History({ lineUserId }) {
+function History({ lineUserId, goTo }) {
   const { data, loading } = useDashboard(lineUserId, "history");
   if (loading) return <Loading />;
   const posted = data?.posted ?? [];
@@ -400,21 +405,40 @@ function History({ lineUserId }) {
           <p className="hist-meta">
             {j.wage} บาท · {statusLabel(j.status)} · {j.group?.group_name || "-"}
           </p>
+          {j.status === "done" && (
+            <button className="hist-btn" onClick={() => goTo("job-detail", j.id)}>
+              📋 ดูรายละเอียดการปิดงาน
+            </button>
+          )}
         </div>
       ))}
       <p className="subhead" style={{ marginTop: 20 }}>
         งานที่ฉันรับ ({claimed.length})
       </p>
       {claimed.length === 0 && <p className="empty small">ยังไม่มี</p>}
-      {claimed.map((c) => (
-        <div key={c.id} className="hist-row">
-          <p className="hist-detail">{c.job?.detail || "-"}</p>
-          <p className="hist-meta">
-            {c.job?.wage} บาท · จาก {c.job?.poster?.display_name || "-"}
-            {c.released_at ? " · คืนงานแล้ว" : ""}
-          </p>
-        </div>
-      ))}
+      {claimed.map((c) => {
+        const isActive = !c.released_at && c.job?.status === "claimed";
+        return (
+          <div key={c.id} className="hist-row">
+            <p className="hist-detail">{c.job?.detail || "-"}</p>
+            <p className="hist-meta">
+              {c.job?.wage} บาท · จาก {c.job?.poster?.display_name || "-"}
+              {c.released_at ? " · คืนงานแล้ว" : ""}
+              {c.job?.status === "done" ? " · จบงานแล้ว" : ""}
+            </p>
+            {isActive && (
+              <div className="hist-actions">
+                <button className="hist-btn primary" onClick={() => goTo("complete", c.job.id)}>
+                  ✅ จบงาน
+                </button>
+                <button className="hist-btn" onClick={() => goTo("return", c.job.id)}>
+                  ↩️ คืนงาน
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -995,6 +1019,9 @@ const styles = `
   .hist-row { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; }
   .hist-meta { font-size: 13px; color: #777; margin: 0; }
+  .hist-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .hist-btn { flex: 1; padding: 9px; font-size: 13px; font-weight: 700; border-radius: 8px; border: 1px solid ${ACCENT}; background: #fff; color: ${ACCENT}; }
+  .hist-btn.primary { background: ${ACCENT}; color: #fff; border: none; }
   .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .metric { background: #fff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); }
   .metric-label { font-size: 13px; color: #888; }
