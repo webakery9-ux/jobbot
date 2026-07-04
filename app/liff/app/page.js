@@ -325,11 +325,22 @@ function OpenJobs({ lineUserId, setTab }) {
   const [claiming, setClaiming] = useState("");
   const [note, setNote] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
+  // ซ่อนงานออกจากลิสต์ทันทีตอนกด (optimistic) ไม่ต้องรอ server ตอบก่อนถึงจะรู้สึกไว
+  const [hiddenIds, setHiddenIds] = useState(() => new Set());
 
   if (loading) return <Loading />;
   if (data && !data.profileCompleted) return <NeedProfile setTab={setTab} />;
 
+  function unhide(jobId) {
+    setHiddenIds((s) => {
+      const next = new Set(s);
+      next.delete(jobId);
+      return next;
+    });
+  }
+
   async function claim(jobId) {
+    setHiddenIds((s) => new Set(s).add(jobId));
     setClaiming(jobId);
     setNote("");
     const res = await fetch("/api/dashboard/claim-job", {
@@ -343,15 +354,19 @@ function OpenJobs({ lineUserId, setTab }) {
       reload();
     } else if (res.status === 409) {
       const d = await res.json().catch(() => ({}));
-      setNote(
-        d.error === "has active job"
-          ? "คุณมีงานที่ยังไม่เสร็จอยู่ ต้องจบหรือคืนงานเดิมก่อนถึงจะรับงานใหม่ได้"
-          : "งานนี้ถูกรับไปแล้ว"
-      );
-      reload();
+      if (d.error === "has active job") {
+        // งานนี้ยังว่างอยู่ แค่เรารับเองไม่ได้ เอากลับเข้าลิสต์
+        unhide(jobId);
+        setNote("คุณมีงานที่ยังไม่เสร็จอยู่ ต้องจบหรือคืนงานเดิมก่อนถึงจะรับงานใหม่ได้");
+      } else {
+        setNote("งานนี้ถูกรับไปแล้ว");
+        reload();
+      }
     } else if (res.status === 402) {
+      unhide(jobId);
       setNote("เครดิตของคุณไม่พอ");
     } else {
+      unhide(jobId);
       setNote("รับงานไม่สำเร็จ ลองใหม่");
     }
   }
@@ -368,8 +383,10 @@ function OpenJobs({ lineUserId, setTab }) {
     }
   }
 
-  const jobs =
-    activeGroup === "all" ? allJobs : allJobs.filter((j) => j.group?.id === activeGroup);
+  const jobs = (activeGroup === "all"
+    ? allJobs
+    : allJobs.filter((j) => j.group?.id === activeGroup)
+  ).filter((j) => !hiddenIds.has(j.id));
 
   return (
     <div className="section">
