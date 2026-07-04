@@ -7,7 +7,7 @@ import {
   hasPriorJobActivity,
   shouldSendProfileReminder,
 } from "@/lib/users";
-import { getOrCreateGroup } from "@/lib/groups";
+import { getOrCreateGroup, linkUserToGroup } from "@/lib/groups";
 import {
   parseJobCommand,
   postJob,
@@ -146,6 +146,7 @@ async function handleGroupMessage(event) {
 
   const { user: poster } = await getOrCreateUser(event.source.userId);
   const group = await getOrCreateGroup(event.source.groupId);
+  await linkUserToGroup(poster.id, group.id, "poster");
 
   if (!(await canDoJobAction(poster))) {
     if (await shouldSendProfileReminder(poster.id, poster.profile_reminder_sent_at)) {
@@ -273,6 +274,7 @@ async function handlePostback(event) {
 
   const job = await getJobWithPoster(jobId);
   const poster = job.poster;
+  if (job.group_id) await linkUserToGroup(claimer.id, job.group_id, "worker");
 
   const claimerBalance = await getUserBalance(claimer.id);
   const chatLink = chatUrl(job.id);
