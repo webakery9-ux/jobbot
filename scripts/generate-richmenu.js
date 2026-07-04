@@ -9,7 +9,7 @@ const COL_W = [834, 833, 833];
 const ROW_H = 843;
 const ACCENT = "#06C755";
 const LABEL_COLOR = "#3C3C3C";
-const DIVIDER = "#E5E5E5";
+const DIVIDER = "#BEBEBE";
 
 const items = [
   { label: "รับงาน", icon: "briefcase" },
@@ -75,18 +75,22 @@ function buildSvg() {
       const circleCy = row * ROW_H + ROW_H * 0.42;
 
       cellsSvg += `
-        <circle cx="${cx}" cy="${circleCy}" r="90" fill="${ACCENT}"/>
-        ${iconPath(item.icon, cx, circleCy)}
-        <text x="${cx}" y="${circleCy + 150}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="48" fill="${LABEL_COLOR}">${item.label}</text>
+        <circle cx="${cx}" cy="${circleCy}" r="125" fill="${ACCENT}"/>
+        <g transform="translate(${cx},${circleCy}) scale(1.4) translate(${-cx},${-circleCy})">
+          ${iconPath(item.icon, cx, circleCy)}
+        </g>
+        <text x="${cx}" y="${circleCy + 200}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="64" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
       `;
       x += w;
     }
   }
 
   let dividers = "";
-  dividers += `<line x1="${COL_W[0]}" y1="0" x2="${COL_W[0]}" y2="${HEIGHT}" stroke="${DIVIDER}" stroke-width="3"/>`;
-  dividers += `<line x1="${COL_W[0] + COL_W[1]}" y1="0" x2="${COL_W[0] + COL_W[1]}" y2="${HEIGHT}" stroke="${DIVIDER}" stroke-width="3"/>`;
-  dividers += `<line x1="0" y1="${ROW_H}" x2="${WIDTH}" y2="${ROW_H}" stroke="${DIVIDER}" stroke-width="3"/>`;
+  dividers += `<line x1="${COL_W[0]}" y1="0" x2="${COL_W[0]}" y2="${ROW_H}" stroke="${DIVIDER}" stroke-width="6"/>`;
+  dividers += `<line x1="${COL_W[0] + COL_W[1]}" y1="0" x2="${COL_W[0] + COL_W[1]}" y2="${ROW_H}" stroke="${DIVIDER}" stroke-width="6"/>`;
+  dividers += `<line x1="${COL_W[0]}" y1="${ROW_H}" x2="${COL_W[0]}" y2="${HEIGHT}" stroke="${DIVIDER}" stroke-width="6"/>`;
+  dividers += `<line x1="${COL_W[0] + COL_W[1]}" y1="${ROW_H}" x2="${COL_W[0] + COL_W[1]}" y2="${HEIGHT}" stroke="${DIVIDER}" stroke-width="6"/>`;
+  dividers += `<line x1="0" y1="${ROW_H}" x2="${WIDTH}" y2="${ROW_H}" stroke="${DIVIDER}" stroke-width="6"/>`;
 
   return `
     <svg width="${WIDTH}" height="${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
