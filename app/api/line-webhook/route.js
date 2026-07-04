@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { replyMessage, pushMessage } from "@/lib/line";
-import { getOrCreateUser, getUserBalance } from "@/lib/users";
+import { getOrCreateUser, getUserBalance, hasPriorJobActivity } from "@/lib/users";
 import { getOrCreateGroup } from "@/lib/groups";
 import {
   parseJobCommand,
@@ -24,10 +24,9 @@ function isValidSignature(rawBody, signature) {
   return hash === signature;
 }
 
-function addFriendUrl() {
-  const basicId = process.env.LINE_BASIC_ID;
-  if (!basicId) return null;
-  return `https://line.me/R/ti/p/%40${basicId.replace(/^@/, "")}`;
+function profileFormUrl() {
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  return liffId ? `https://liff.line.me/${liffId}` : null;
 }
 
 function creditSuffix(balance) {
@@ -40,9 +39,39 @@ function creditSuffix(balance) {
   return text;
 }
 
+function profileReminder(user) {
+  if (user.profile_completed) return "";
+  const url = profileFormUrl();
+  return (
+    "\n\n📝 กรุณากรอกข้อมูลส่วนตัวก่อนใช้งานครั้งต่อไปนะครับ" +
+    (url ? `: ${url}` : "")
+  );
+}
+
+function profileRequiredMessage() {
+  const url = profileFormUrl();
+  return (
+    "ต้องกรอกข้อมูลส่วนตัวก่อนถึงจะใช้งานต่อได้ครับ (ใช้ได้ฟรีแค่ครั้งแรกโดยไม่ต้องกรอก)\n" +
+    (url ? `กรอกได้ที่: ${url}` : "กรุณาติดต่อแอดมินเพื่อกรอกข้อมูล")
+  );
+}
+
+async function canDoJobAction(user) {
+  if (user.profile_completed) return true;
+  return !(await hasPriorJobActivity(user.id));
+}
+
 function personLine(user) {
   const name = user.display_name ?? "-";
   return user.phone ? `${name} (โทร ${user.phone})` : name;
+}
+
+// ส่ง DM หา user ถ้าส่งไม่ได้ (ยังไม่แอดเพื่อน) ให้ประกาศ fallback เข้ากลุ่มแทน
+async function notifyUser({ user, lineGroupId, messages, fallbackText }) {
+  const result = await pushMessage(user.line_user_id, messages);
+  if (!result.ok && lineGroupId) {
+    await pushMessage(lineGroupId, [{ type: "text", text: fallbackText }]);
+  }
 }
 
 const WELCOME_MESSAGE =
@@ -58,14 +87,6 @@ const WELCOME_MESSAGE =
   "/งาน สุขุมวิท-พัทยา 1000 โอน24\n" +
   "/งาน ด่วน สุขุมวิท-พัทยา 1000 ปลายทาง\n" +
   "/งาน ด่วน นานา-พัทยา 1000 เก็บลูกค้า";
-
-function requireFriendMessage() {
-  const url = addFriendUrl();
-  return (
-    "ต้องเพิ่มเพื่อนบอทก่อนถึงจะใช้งานส่วนนี้ได้ครับ (ระบบต้องส่งการแจ้งเตือนส่วนตัวให้คุณ)\n" +
-    (url ? `เพิ่มเพื่อนที่: ${url}` : "ค้นหาชื่อบอทใน LINE เพื่อเพิ่มเพื่อนได้เลยครับ")
-  );
-}
 
 async function handleDirectMessage(event) {
   const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
@@ -88,16 +109,17 @@ async function handleDirectMessage(event) {
 async function handleGroupMessage(event) {
   const text = event.message.text.trim();
   if (!/^\/(job|งาน)/i.test(text)) return; // เงียบไว้ ไม่ตอบข้อความอื่นในกลุ่ม
-
-  if (!event.source.userId) {
-    await replyMessage(event.replyToken, [
-      { type: "text", text: requireFriendMessage() },
-    ]);
-    return;
-  }
+  if (!event.source.userId) return; // ไม่มี ID มาจริงๆ ทำอะไรไม่ได้ ปล่อยผ่าน
 
   const { user: poster } = await getOrCreateUser(event.source.userId);
   const group = await getOrCreateGroup(event.source.groupId);
+
+  if (!(await canDoJobAction(poster))) {
+    await replyMessage(event.replyToken, [
+      { type: "text", text: profileRequiredMessage() },
+    ]);
+    return;
+  }
 
   const parsed = parseJobCommand(text);
   if (!parsed) {
@@ -132,9 +154,17 @@ async function handleGroupMessage(event) {
     await saveJobQuoteToken(job.id, quoteToken);
 
     const balance = await getUserBalance(poster.id);
-    await pushMessage(poster.line_user_id, [
-      { type: "text", text: `เปิดงานสำเร็จ${creditSuffix(balance)}` },
-    ]);
+    await notifyUser({
+      user: poster,
+      lineGroupId: event.source.groupId,
+      messages: [
+        {
+          type: "text",
+          text: `เปิดงานสำเร็จ${creditSuffix(balance)}${profileReminder(poster)}`,
+        },
+      ],
+      fallbackText: `เปิดงาน "${job.detail}" สำเร็จครับ${profileReminder(poster)}`,
+    });
   } catch (err) {
     if (err.message?.includes("INSUFFICIENT_CREDIT")) {
       await replyMessage(event.replyToken, [
@@ -162,16 +192,17 @@ async function handleJoin(event) {
 async function handlePostback(event) {
   const params = new URLSearchParams(event.postback.data);
   if (params.get("action") !== "claim") return;
-
-  if (!event.source.userId) {
-    await replyMessage(event.replyToken, [
-      { type: "text", text: requireFriendMessage() },
-    ]);
-    return;
-  }
+  if (!event.source.userId) return; // ไม่มี ID มาจริงๆ ทำอะไรไม่ได้ ปล่อยผ่าน
 
   const jobId = params.get("job_id");
   const { user: claimer } = await getOrCreateUser(event.source.userId);
+
+  if (!(await canDoJobAction(claimer))) {
+    await replyMessage(event.replyToken, [
+      { type: "text", text: profileRequiredMessage() },
+    ]);
+    return;
+  }
 
   let claim;
   try {
@@ -179,18 +210,28 @@ async function handlePostback(event) {
   } catch (err) {
     if (err.code === "23505" || err.message?.includes("JOB_NOT_AVAILABLE")) {
       const job = await getJobWithPoster(jobId);
-      await pushMessage(claimer.line_user_id, [
-        {
-          type: "text",
-          text: `งาน "${job.detail}" จาก ${job.poster?.display_name ?? "-"} ถูกท่านอื่นรับไปแล้วครับ ลองงานอื่นดูนะครับ`,
-        },
-      ]);
+      await notifyUser({
+        user: claimer,
+        lineGroupId: event.source.groupId,
+        messages: [
+          {
+            type: "text",
+            text: `งาน "${job.detail}" จาก ${job.poster?.display_name ?? "-"} ถูกท่านอื่นรับไปแล้วครับ ลองงานอื่นดูนะครับ`,
+          },
+        ],
+        fallbackText: `งาน "${job.detail}" ถูกท่านอื่นรับไปแล้วครับ ลองงานอื่นดูนะครับ`,
+      });
       return;
     }
     if (err.message?.includes("INSUFFICIENT_CREDIT")) {
-      await pushMessage(claimer.line_user_id, [
-        { type: "text", text: "เครดิตของคุณไม่พอสำหรับรับงานนี้ กรุณาเติมเครดิต" },
-      ]);
+      await notifyUser({
+        user: claimer,
+        lineGroupId: event.source.groupId,
+        messages: [
+          { type: "text", text: "เครดิตของคุณไม่พอสำหรับรับงานนี้ กรุณาเติมเครดิต" },
+        ],
+        fallbackText: "เครดิตไม่พอสำหรับรับงานนี้ครับ",
+      });
       return;
     }
     throw err;
@@ -200,28 +241,44 @@ async function handlePostback(event) {
   const poster = job.poster;
 
   const claimerBalance = await getUserBalance(claimer.id);
-  await pushMessage(claimer.line_user_id, [
-    {
-      type: "text",
-      text:
-        `✅ คุณได้รับงานนี้แล้ว!\n` +
-        `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
-        `ผู้จ้างงาน: ${personLine(poster)}\n${formatThaiDateTime(claim.claimed_at)}` +
-        creditSuffix(claimerBalance),
-    },
-  ]);
+  await notifyUser({
+    user: claimer,
+    lineGroupId: event.source.groupId,
+    messages: [
+      {
+        type: "text",
+        text:
+          `✅ คุณได้รับงานนี้แล้ว!\n` +
+          `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
+          `ผู้จ้างงาน: ${personLine(poster)}\n${formatThaiDateTime(claim.claimed_at)}` +
+          creditSuffix(claimerBalance) +
+          profileReminder(claimer),
+      },
+    ],
+    fallbackText: `คุณได้รับงาน "${job.detail}" แล้วครับ (ส่งข้อมูลติดต่อไม่ได้เพราะยังไม่ได้เพิ่มเพื่อนบอท)${profileReminder(
+      claimer
+    )}`,
+  });
 
   const posterBalance = await getUserBalance(poster.id);
-  await pushMessage(poster.line_user_id, [
-    {
-      type: "text",
-      text:
-        `🎉 มีคนรับงานแล้ว!\n` +
-        `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
-        `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
-        creditSuffix(posterBalance),
-    },
-  ]);
+  await notifyUser({
+    user: poster,
+    lineGroupId: job.group?.line_group_id,
+    messages: [
+      {
+        type: "text",
+        text:
+          `🎉 มีคนรับงานแล้ว!\n` +
+          `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
+          `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
+          creditSuffix(posterBalance) +
+          profileReminder(poster),
+      },
+    ],
+    fallbackText: `งาน "${job.detail}" มีคนรับแล้วครับ (ส่งข้อมูลติดต่อไม่ได้เพราะยังไม่ได้เพิ่มเพื่อนบอท)${profileReminder(
+      poster
+    )}`,
+  });
 
   if (job.group?.line_group_id) {
     const groupMessage = {
