@@ -79,7 +79,7 @@ function buildSvg() {
         <g transform="translate(${cx},${circleCy}) scale(1.7) translate(${-cx},${-circleCy})">
           ${iconPath(item.icon, cx, circleCy)}
         </g>
-        <text x="${cx}" y="${circleCy + 290}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="78" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
+        <text x="${cx}" y="${circleCy + 340}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="88" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
       `;
       x += w;
     }
@@ -91,6 +91,7 @@ function buildSvg() {
   dividers += `<line x1="${COL_W[0]}" y1="${ROW_H}" x2="${COL_W[0]}" y2="${HEIGHT}" stroke="${DIVIDER}" stroke-width="6"/>`;
   dividers += `<line x1="${COL_W[0] + COL_W[1]}" y1="${ROW_H}" x2="${COL_W[0] + COL_W[1]}" y2="${HEIGHT}" stroke="${DIVIDER}" stroke-width="6"/>`;
   dividers += `<line x1="0" y1="${ROW_H}" x2="${WIDTH}" y2="${ROW_H}" stroke="${DIVIDER}" stroke-width="6"/>`;
+  dividers += `<line x1="0" y1="${HEIGHT - 4}" x2="${WIDTH}" y2="${HEIGHT - 4}" stroke="${DIVIDER}" stroke-width="8"/>`;
 
   return `
     <svg width="${WIDTH}" height="${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
