@@ -145,6 +145,7 @@ async function handleGroupMessage(event) {
       wage: parsed.wage,
       paymentMethod: parsed.payment_method,
       isUrgent: parsed.isUrgent,
+      vehicleType: parsed.vehicleType,
     });
 
     const replyResult = await replyMessage(event.replyToken, [
