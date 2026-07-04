@@ -171,6 +171,7 @@ async function handleGroupMessage(event) {
       user: poster,
       lineGroupId: event.source.groupId,
       messages: [
+        buildJobCardMessage(job, poster, { showClaimButton: false }),
         {
           type: "text",
           text: `เปิดงานสำเร็จ${creditSuffix(balance)}${profileReminder(poster)}`,
