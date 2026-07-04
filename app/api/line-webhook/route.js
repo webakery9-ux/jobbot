@@ -31,6 +31,8 @@ function isValidSignature(rawBody, signature) {
 }
 
 function profileFormUrl() {
+  const mgmtId = process.env.NEXT_PUBLIC_MGMT_LIFF_ID;
+  if (mgmtId) return `https://liff.line.me/${mgmtId}?tab=profile`;
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
   return liffId ? `https://liff.line.me/${liffId}` : null;
 }

@@ -62,10 +62,11 @@ export default function DashboardApp() {
       </div>
 
       {tab === "home" && <Home setTab={setTab} lineUserId={lineUserId} />}
-      {tab === "post" && <PostJob lineUserId={lineUserId} />}
-      {tab === "jobs" && <OpenJobs lineUserId={lineUserId} />}
+      {tab === "post" && <PostJob lineUserId={lineUserId} setTab={setTab} />}
+      {tab === "jobs" && <OpenJobs lineUserId={lineUserId} setTab={setTab} />}
       {tab === "history" && <History lineUserId={lineUserId} />}
       {tab === "income" && <Income lineUserId={lineUserId} />}
+      {tab === "profile" && <Profile lineUserId={lineUserId} setTab={setTab} />}
       {tab === "credit" && <ComingSoon title="เติมเครดิต" />}
 
       <style jsx>{styles}</style>
@@ -81,6 +82,7 @@ function tabTitle(tab) {
       jobs: "รับงาน",
       history: "ประวัติงาน",
       income: "สรุปรายได้",
+      profile: "ข้อมูลส่วนตัว",
       credit: "เติมเครดิต",
     }[tab] ?? "JobBotTH"
   );
@@ -111,6 +113,7 @@ function Home({ setTab, lineUserId }) {
     { key: "history", label: "ประวัติงาน", icon: "📋" },
     { key: "income", label: "สรุปรายได้", icon: "📊" },
     { key: "credit", label: "เติมเครดิต", icon: "👛" },
+    { key: "profile", label: "ข้อมูลส่วนตัว", icon: "👤" },
   ];
   return (
     <div className="section">
@@ -150,7 +153,7 @@ function PostJob({ lineUserId }) {
   }, [data]);
 
   if (loading) return <Loading />;
-  if (data && !data.profileCompleted) return <NeedProfile />;
+  if (data && !data.profileCompleted) return <NeedProfile setTab={setTab} />;
   if (data && (!data.groups || data.groups.length === 0)) {
     return (
       <div className="section">
@@ -262,7 +265,7 @@ function OpenJobs({ lineUserId }) {
   const [note, setNote] = useState("");
 
   if (loading) return <Loading />;
-  if (data && !data.profileCompleted) return <NeedProfile />;
+  if (data && !data.profileCompleted) return <NeedProfile setTab={setTab} />;
 
   async function claim(jobId) {
     setClaiming(jobId);
@@ -380,6 +383,92 @@ function Income({ lineUserId }) {
   );
 }
 
+function Profile({ lineUserId, setTab }) {
+  const { data, loading } = useDashboard(lineUserId, "profile");
+  const [form, setForm] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (data?.profile) setForm(data.profile);
+  }, [data]);
+
+  if (loading || !form) return <Loading />;
+
+  async function save(e) {
+    e.preventDefault();
+    setSaving(true);
+    setStatus(null);
+    const res = await fetch("/api/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineUserId, ...form }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setStatus({ ok: true, text: "บันทึกข้อมูลสำเร็จ" });
+    } else {
+      setStatus({ ok: false, text: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง" });
+    }
+  }
+
+  return (
+    <form className="section" onSubmit={save}>
+      <label className="field">
+        <span className="field-label">ชื่อ</span>
+        <input
+          required
+          value={form.firstName}
+          onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+        />
+      </label>
+      <label className="field">
+        <span className="field-label">นามสกุล</span>
+        <input
+          required
+          value={form.lastName}
+          onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+        />
+      </label>
+      <label className="field">
+        <span className="field-label">เบอร์ติดต่อ</span>
+        <input
+          required
+          type="tel"
+          placeholder="08X-XXX-XXXX"
+          value={form.phone}
+          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+        />
+      </label>
+      <label className="field">
+        <span className="field-label">ประเภทรถ</span>
+        <select
+          value={form.vehicleType}
+          onChange={(e) => setForm({ ...form, vehicleType: e.target.value })}
+        >
+          <option value="Sedan">Sedan</option>
+          <option value="SUV">SUV</option>
+          <option value="VAN">VAN</option>
+        </select>
+      </label>
+      <label className="field">
+        <span className="field-label">ยี่ห้อ/รุ่นรถ (ถ้ามี)</span>
+        <input
+          placeholder="เช่น Toyota Vios"
+          value={form.vehicleModel}
+          onChange={(e) => setForm({ ...form, vehicleModel: e.target.value })}
+        />
+      </label>
+      {status && (
+        <p className={status.ok ? "status ok" : "status err"}>{status.text}</p>
+      )}
+      <button type="submit" disabled={saving}>
+        {saving ? "กำลังบันทึก..." : "บันทึกข้อมูล"}
+      </button>
+    </form>
+  );
+}
+
 function ComingSoon({ title }) {
   return (
     <div className="section center-pad">
@@ -396,16 +485,13 @@ function Loading() {
   );
 }
 
-function NeedProfile() {
-  const url = process.env.NEXT_PUBLIC_LIFF_ID
-    ? `https://liff.line.me/${process.env.NEXT_PUBLIC_LIFF_ID}`
-    : "#";
+function NeedProfile({ setTab }) {
   return (
     <div className="section center-pad">
       <p className="empty">กรุณากรอกข้อมูลส่วนตัวก่อนใช้งานครับ</p>
-      <a className="link-btn" href={url}>
+      <button className="link-btn" onClick={() => setTab("profile")}>
         กรอกข้อมูลส่วนตัว
-      </a>
+      </button>
     </div>
   );
 }
@@ -463,7 +549,7 @@ const styles = `
   .total-card strong { font-size: 20px; color: #222; }
   .empty { text-align: center; color: #999; font-size: 15px; padding: 12px; }
   .empty.small { padding: 4px; font-size: 14px; }
-  .link-btn { background: ${ACCENT}; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; }
+  .link-btn { background: ${ACCENT}; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; border: none; font-size: 15px; }
   .msg { font-size: 16px; color: #444; }
   .spinner { width: 32px; height: 32px; border: 3px solid #E5E5E5; border-top-color: ${ACCENT}; border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }

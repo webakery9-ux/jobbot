@@ -43,6 +43,18 @@ export async function GET(request) {
     const income = await getIncomeSummary(user.id);
     return NextResponse.json({ ...base, income });
   }
+  if (section === "profile") {
+    return NextResponse.json({
+      ...base,
+      profile: {
+        firstName: user.first_name ?? "",
+        lastName: user.last_name ?? "",
+        phone: user.phone ?? "",
+        vehicleType: user.vehicle_type ?? "Sedan",
+        vehicleModel: user.vehicle_model ?? "",
+      },
+    });
+  }
 
   return NextResponse.json(base);
 }
