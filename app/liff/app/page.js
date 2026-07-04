@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import liff from "@line/liff";
 
 const ACCENT = "#06C755";
@@ -735,6 +735,7 @@ function CompleteJob({ lineUserId, jobId }) {
   const [note, setNote] = useState("");
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
 
   async function handlePhoto(e) {
     const file = e.target.files?.[0];
@@ -745,6 +746,11 @@ function CompleteJob({ lineUserId, jobId }) {
     } catch (err) {
       setError("อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง");
     }
+  }
+
+  function removePhoto() {
+    setPhoto(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function submit() {
@@ -782,9 +788,32 @@ function CompleteJob({ lineUserId, jobId }) {
         </label>
         <label className="field">
           <span className="field-label">ถ่ายรูปยืนยัน (ถ้ามี)</span>
-          <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} />
+          {!photo ? (
+            <button
+              type="button"
+              className="photo-upload"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <span className="photo-upload-icon">📷</span>
+              <span>แตะเพื่อถ่ายรูปหรือเลือกรูป</span>
+            </button>
+          ) : (
+            <div className="photo-preview-wrap">
+              <img src={photo} alt="preview" className="photo-preview" />
+              <button type="button" className="photo-remove" onClick={removePhoto}>
+                ✕ ลบรูป
+              </button>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handlePhoto}
+            style={{ display: "none" }}
+          />
         </label>
-        {photo && <img src={photo} alt="preview" className="photo-preview" />}
         {error && <p className="status err">{error}</p>}
         <button className="claim-btn" onClick={() => setPhase("confirm")}>
           ต่อไป
@@ -999,7 +1028,12 @@ const styles = `
   .field-label { font-size: 13px; color: #666; font-weight: 600; }
   input, select, textarea { width: 100%; padding: 12px 14px; font-size: 15px; border: 1px solid #DDD; border-radius: 10px; background: #fff; box-sizing: border-box; outline: none; font-family: inherit; }
   input:focus, select:focus, textarea:focus { border-color: ${ACCENT}; }
-  .photo-preview { width: 100%; border-radius: 10px; margin-top: 8px; }
+  .photo-preview { width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
+  .photo-upload { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 28px 16px; border: 2px dashed #CFCFCF; border-radius: 12px; background: #FAFAFA; color: #888; font-size: 13px; }
+  .photo-upload:active { background: #F0F0F0; }
+  .photo-upload-icon { font-size: 28px; }
+  .photo-preview-wrap { position: relative; }
+  .photo-remove { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; }
   .checkbox { display: flex; align-items: center; gap: 8px; font-size: 15px; }
   .checkbox input { width: auto; }
   button[type="submit"], .claim-btn { padding: 14px; font-size: 16px; font-weight: 700; color: #fff; background: ${ACCENT}; border: none; border-radius: 12px; }
