@@ -13,6 +13,7 @@ export default function DashboardApp() {
   const [displayName, setDisplayName] = useState("");
   const [tab, setTab] = useState("home");
   const [jobParam, setJobParam] = useState("");
+  const [tabStack, setTabStack] = useState([]);
 
   useEffect(() => {
     async function init() {
@@ -54,35 +55,50 @@ export default function DashboardApp() {
     );
   }
 
-  function goTo(nextTab, jobId) {
+  // ไปหน้าใหม่ พร้อมจำหน้าเดิมไว้ใน stack เพื่อให้ปุ่ม "กลับ" ย้อนถูกที่
+  function navigate(nextTab, jobId) {
+    setTabStack((s) => [...s, tab]);
     setJobParam(jobId || "");
     setTab(nextTab);
+  }
+
+  function goBack() {
+    setTabStack((s) => {
+      if (s.length === 0) {
+        setTab("home");
+        return s;
+      }
+      const copy = [...s];
+      const prevTab = copy.pop();
+      setTab(prevTab);
+      return copy;
+    });
   }
 
   return (
     <div className="wrap">
       <div className="topbar">
         {tab !== "home" && (
-          <button className="back" onClick={() => setTab("home")}>
+          <button className="back" onClick={goBack}>
             ‹ กลับ
           </button>
         )}
         <span className="topbar-title">{tabTitle(tab)}</span>
       </div>
 
-      {tab === "home" && <Home setTab={setTab} lineUserId={lineUserId} />}
-      {tab === "post" && <PostJob lineUserId={lineUserId} setTab={setTab} />}
-      {tab === "jobs" && <OpenJobs lineUserId={lineUserId} setTab={setTab} />}
+      {tab === "home" && <Home setTab={navigate} lineUserId={lineUserId} />}
+      {tab === "post" && <PostJob lineUserId={lineUserId} setTab={navigate} />}
+      {tab === "jobs" && <OpenJobs lineUserId={lineUserId} setTab={navigate} />}
       {tab === "claim" && (
         <Claim lineUserId={lineUserId} displayName={displayName} jobId={jobParam} />
       )}
       {tab === "complete" && <CompleteJob lineUserId={lineUserId} jobId={jobParam} />}
       {tab === "return" && <ReturnJob lineUserId={lineUserId} jobId={jobParam} />}
       {tab === "job-detail" && <JobDetail jobId={jobParam} />}
-      {tab === "history" && <History lineUserId={lineUserId} goTo={goTo} />}
+      {tab === "history" && <History lineUserId={lineUserId} goTo={navigate} />}
       {tab === "income" && <Income lineUserId={lineUserId} />}
       {tab === "profile" && (
-        <Profile lineUserId={lineUserId} displayName={displayName} setTab={setTab} />
+        <Profile lineUserId={lineUserId} displayName={displayName} setTab={navigate} />
       )}
       {tab === "credit" && <ComingSoon title="เติมเครดิต" />}
 
