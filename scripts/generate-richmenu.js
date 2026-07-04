@@ -72,14 +72,14 @@ function buildSvg() {
       const item = items[row * COLS + col];
       const cx = x + w / 2;
       const cy = row * ROW_H + ROW_H / 2 - 40;
-      const circleCy = row * ROW_H + ROW_H * 0.42;
+      const circleCy = row * ROW_H + ROW_H * 0.36;
 
       cellsSvg += `
-        <circle cx="${cx}" cy="${circleCy}" r="125" fill="${ACCENT}"/>
-        <g transform="translate(${cx},${circleCy}) scale(1.4) translate(${-cx},${-circleCy})">
+        <circle cx="${cx}" cy="${circleCy}" r="160" fill="${ACCENT}"/>
+        <g transform="translate(${cx},${circleCy}) scale(1.7) translate(${-cx},${-circleCy})">
           ${iconPath(item.icon, cx, circleCy)}
         </g>
-        <text x="${cx}" y="${circleCy + 200}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="64" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
+        <text x="${cx}" y="${circleCy + 290}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="78" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
       `;
       x += w;
     }
