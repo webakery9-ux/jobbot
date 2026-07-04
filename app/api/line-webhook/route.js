@@ -178,8 +178,12 @@ async function handlePostback(event) {
     claim = await claimJob({ jobId, claimerId: claimer.id });
   } catch (err) {
     if (err.code === "23505" || err.message?.includes("JOB_NOT_AVAILABLE")) {
+      const job = await getJobWithPoster(jobId);
       await pushMessage(claimer.line_user_id, [
-        { type: "text", text: "งานนี้ถูกรับไปแล้วครับ ลองงานอื่นดูนะครับ" },
+        {
+          type: "text",
+          text: `งาน "${job.detail}" จาก ${job.poster?.display_name ?? "-"} ถูกท่านอื่นรับไปแล้วครับ ลองงานอื่นดูนะครับ`,
+        },
       ]);
       return;
     }
