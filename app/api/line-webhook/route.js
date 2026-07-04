@@ -1,9 +1,15 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
-import { replyMessage } from "@/lib/line";
+import { replyMessage, pushMessage } from "@/lib/line";
 import { getOrCreateUser } from "@/lib/users";
 import { getOrCreateGroup } from "@/lib/groups";
-import { parseJobCommand, postJob, buildJobCardMessage } from "@/lib/jobs";
+import {
+  parseJobCommand,
+  postJob,
+  buildJobCardMessage,
+  claimJob,
+  getJobWithPoster,
+} from "@/lib/jobs";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
@@ -86,6 +92,56 @@ async function handleTextMessage(event) {
   }
 }
 
+function contactLine(user) {
+  const name = user.display_name ?? "-";
+  return user.phone ? `${name}\nเบอร์: ${user.phone}` : name;
+}
+
+async function handlePostback(event) {
+  const params = new URLSearchParams(event.postback.data);
+  if (params.get("action") !== "claim") return;
+
+  const jobId = params.get("job_id");
+  const { user: claimer } = await getOrCreateUser(event.source.userId);
+
+  try {
+    await claimJob({ jobId, claimerId: claimer.id });
+  } catch (err) {
+    if (err.code === "23505" || err.message?.includes("JOB_NOT_AVAILABLE")) {
+      await pushMessage(claimer.line_user_id, [
+        { type: "text", text: "งานนี้ถูกรับไปแล้วครับ ลองงานอื่นดูนะครับ" },
+      ]);
+      return;
+    }
+    if (err.message?.includes("INSUFFICIENT_CREDIT")) {
+      await pushMessage(claimer.line_user_id, [
+        { type: "text", text: "เครดิตของคุณไม่พอสำหรับรับงานนี้ กรุณาเติมเครดิต" },
+      ]);
+      return;
+    }
+    throw err;
+  }
+
+  const job = await getJobWithPoster(jobId);
+  const poster = job.poster;
+
+  await pushMessage(claimer.line_user_id, [
+    {
+      type: "text",
+      text:
+        `คุณได้รับงานนี้แล้ว!\n${job.detail}\nค่าจ้าง: ${job.wage} บาท\n\n` +
+        `ติดต่อผู้จ้าง:\n${contactLine(poster)}`,
+    },
+  ]);
+
+  await pushMessage(poster.line_user_id, [
+    {
+      type: "text",
+      text: `งาน "${job.detail}" มีคนรับแล้ว!\n\nผู้รับงาน:\n${contactLine(claimer)}`,
+    },
+  ]);
+}
+
 export async function POST(request) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-line-signature");
@@ -99,6 +155,8 @@ export async function POST(request) {
   for (const event of body.events) {
     if (event.type === "message" && event.message.type === "text") {
       await handleTextMessage(event);
+    } else if (event.type === "postback") {
+      await handlePostback(event);
     }
   }
 
