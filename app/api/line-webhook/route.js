@@ -77,7 +77,7 @@ async function canDoJobAction(user) {
 
 function personLine(user) {
   const name = user.display_name ?? "-";
-  return user.phone ? `${name} (โทร ${user.phone})` : name;
+  return user.phone ? `${name}\nโทร ${user.phone}` : name;
 }
 
 // ส่ง DM หา user ถ้าส่งไม่ได้ (ยังไม่แอดเพื่อน) ให้ประกาศ fallback เข้ากลุ่มแทน
