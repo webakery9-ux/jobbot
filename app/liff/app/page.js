@@ -388,9 +388,13 @@ function Profile({ lineUserId, setTab }) {
   const [form, setForm] = useState(null);
   const [status, setStatus] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(null);
 
   useEffect(() => {
-    if (data?.profile) setForm(data.profile);
+    if (data?.profile) {
+      setForm(data.profile);
+      if (data.profileCompleted) setSaved(data.profile);
+    }
   }, [data]);
 
   if (loading || !form) return <Loading />;
@@ -407,6 +411,7 @@ function Profile({ lineUserId, setTab }) {
     setSaving(false);
     if (res.ok) {
       setStatus({ ok: true, text: "บันทึกข้อมูลสำเร็จ" });
+      setSaved({ ...form });
     } else {
       setStatus({ ok: false, text: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง" });
     }
@@ -414,6 +419,28 @@ function Profile({ lineUserId, setTab }) {
 
   return (
     <form className="section" onSubmit={save}>
+      {saved ? (
+        <div className="profile-summary">
+          <p className="summary-head">ข้อมูลปัจจุบันของคุณ</p>
+          <div className="summary-row">
+            <span>ชื่อ-นามสกุล</span>
+            <strong>{saved.firstName} {saved.lastName}</strong>
+          </div>
+          <div className="summary-row">
+            <span>เบอร์ติดต่อ</span>
+            <strong>{saved.phone}</strong>
+          </div>
+          <div className="summary-row">
+            <span>ประเภทรถ</span>
+            <strong>{saved.vehicleType}{saved.vehicleModel ? ` · ${saved.vehicleModel}` : ""}</strong>
+          </div>
+        </div>
+      ) : (
+        <div className="status err">
+          ⚠️ ยังไม่มีข้อมูลส่วนตัว จำเป็นต้องกรอกข้อมูลก่อนรับงานและจ่ายงานครับ
+        </div>
+      )}
+      <p className="subhead">{saved ? "แก้ไขข้อมูล" : "กรอกข้อมูล"}</p>
       <label className="field">
         <span className="field-label">ชื่อ</span>
         <input
@@ -537,6 +564,11 @@ const styles = `
   .job-sub { font-size: 13px; color: #888; margin: 0 0 12px; }
   .claim-btn { width: 100%; }
   .subhead { font-size: 15px; font-weight: 700; color: #333; margin: 0; }
+  .profile-summary { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; }
+  .summary-head { font-size: 14px; font-weight: 700; color: ${ACCENT}; margin: 0 0 2px; }
+  .summary-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; }
+  .summary-row span { color: #888; flex-shrink: 0; }
+  .summary-row strong { color: #222; font-weight: 600; text-align: right; }
   .hist-row { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; }
   .hist-meta { font-size: 13px; color: #777; margin: 0; }
