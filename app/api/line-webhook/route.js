@@ -12,7 +12,6 @@ import {
   parseJobCommand,
   postJob,
   buildJobCardMessage,
-  buildJobPostedCard,
   claimJob,
   getJobWithPoster,
   formatThaiDateTime,
@@ -180,15 +179,6 @@ async function handleGroupMessage(event) {
     ]);
     const quoteToken = replyResult?.sentMessages?.[0]?.quoteToken;
     await saveJobQuoteToken(job.id, quoteToken);
-
-    const balance = await getUserBalance(poster.id);
-    const noticeText = (creditSuffix(balance) + profileReminder(poster)).trim();
-    await notifyUser({
-      user: poster,
-      lineGroupId: event.source.groupId,
-      messages: [buildJobPostedCard(job, noticeText)],
-      fallbackText: `เปิดงาน "${job.detail}" สำเร็จครับ${profileReminder(poster)}`,
-    });
   } catch (err) {
     if (err.message?.includes("INSUFFICIENT_CREDIT")) {
       await replyMessage(event.replyToken, [
