@@ -17,6 +17,7 @@ import {
   getJobWithPoster,
   formatThaiDateTime,
   displayNameOf,
+  buildGroupClaimedMessage,
   saveJobQuoteToken,
 } from "@/lib/jobs";
 
@@ -307,13 +308,7 @@ async function handlePostback(event) {
   });
 
   if (job.group?.line_group_id) {
-    const groupMessage = {
-      type: "text",
-      text: `✅ งานนี้ถูกรับแล้วโดย ${displayNameOf(claimer)}`,
-    };
-    if (job.line_quote_token) {
-      groupMessage.quoteToken = job.line_quote_token;
-    }
+    const groupMessage = buildGroupClaimedMessage(claimer, poster, job.line_quote_token);
     await pushMessage(job.group.line_group_id, [groupMessage]);
   }
 }
