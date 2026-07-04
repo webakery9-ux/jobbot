@@ -121,6 +121,8 @@ function useDashboard(lineUserId, section) {
   return { data, loading, reload };
 }
 
+const LOW_CREDIT_THRESHOLD = 20;
+
 function Home({ setTab, lineUserId }) {
   const { data } = useDashboard(lineUserId, "home");
   const items = [
@@ -131,11 +133,21 @@ function Home({ setTab, lineUserId }) {
     { key: "credit", label: "เติมเครดิต", icon: "👛" },
     { key: "profile", label: "ข้อมูลส่วนตัว", icon: "👤" },
   ];
+  const isLow = data && data.balance <= LOW_CREDIT_THRESHOLD;
   return (
     <div className="section">
-      <div className="balance-card">
-        <span className="balance-label">เครดิตคงเหลือ</span>
+      <div className={`balance-card ${isLow ? "low" : ""}`}>
+        <div className="balance-top">
+          <span className="balance-label">เครดิตคงเหลือ</span>
+          {isLow && <span className="balance-alert">⚠️</span>}
+        </div>
         <span className="balance-value">{data ? data.balance : "-"}</span>
+        {data && !isLow && <span className="balance-ok">✓ เพียงพอสำหรับใช้งาน</span>}
+        {isLow && (
+          <button className="balance-warning" onClick={() => setTab("credit")}>
+            เครดิตใกล้หมด แตะเพื่อเติมเครดิต
+          </button>
+        )}
       </div>
       <div className="grid">
         {items.map((it) => (
@@ -941,9 +953,14 @@ const styles = `
   .topbar-title { font-size: 17px; font-weight: 700; }
   .back { background: rgba(255,255,255,0.2); color: #fff; border: none; border-radius: 8px; padding: 6px 12px; font-size: 14px; }
   .section { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-  .balance-card { background: ${ACCENT}; color: #fff; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 4px; }
+  .balance-card { background: ${ACCENT}; color: #fff; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 4px; transition: background 0.2s; }
+  .balance-card.low { background: #E24B4A; }
+  .balance-top { display: flex; align-items: center; justify-content: space-between; }
   .balance-label { font-size: 13px; opacity: 0.9; }
+  .balance-alert { font-size: 22px; }
   .balance-value { font-size: 34px; font-weight: 700; }
+  .balance-ok { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+  .balance-warning { margin-top: 10px; background: rgba(255,255,255,0.22); border: none; color: #fff; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: left; }
   .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .grid-item { background: #fff; border: none; border-radius: 14px; padding: 22px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); }
   .grid-icon { font-size: 30px; }
