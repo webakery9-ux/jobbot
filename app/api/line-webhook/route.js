@@ -9,6 +9,7 @@ import {
   buildJobCardMessage,
   claimJob,
   getJobWithPoster,
+  formatThaiDateTime,
 } from "@/lib/jobs";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
@@ -105,8 +106,9 @@ async function handlePostback(event) {
   const jobId = params.get("job_id");
   const { user: claimer } = await getOrCreateUser(event.source.userId);
 
+  let claim;
   try {
-    await claimJob({ jobId, claimerId: claimer.id });
+    claim = await claimJob({ jobId, claimerId: claimer.id });
   } catch (err) {
     if (err.code === "23505" || err.message?.includes("JOB_NOT_AVAILABLE")) {
       await pushMessage(claimer.line_user_id, [
@@ -138,7 +140,10 @@ async function handlePostback(event) {
   await pushMessage(poster.line_user_id, [
     {
       type: "text",
-      text: `งาน "${job.detail}" มีคนรับแล้ว!\n\nผู้รับงาน:\n${contactLine(claimer)}`,
+      text:
+        `🎉 มีคนรับงานแล้ว!\n\n` +
+        `${job.detail}\n${formatThaiDateTime(job.created_at)} แจ้งงาน\n\n` +
+        `${contactLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)} รับงาน`,
     },
   ]);
 }
