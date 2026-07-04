@@ -1,19 +1,9 @@
 import { NextResponse } from "next/server";
 import { getUserByLineId } from "@/lib/dashboard";
-import {
-  completeJob,
-  getActiveClaimForUser,
-  getJobWithPoster,
-  displayNameOf,
-  buildLinkButtonMessage,
-} from "@/lib/jobs";
+import { completeJob, getActiveClaimForUser } from "@/lib/jobs";
 import { uploadJobPhoto } from "@/lib/storage";
-import { pushMessage } from "@/lib/line";
 
-function detailUrl(jobId) {
-  const mgmt = process.env.NEXT_PUBLIC_MGMT_LIFF_ID;
-  return mgmt ? `https://liff.line.me/${mgmt}?tab=job-detail&job=${jobId}` : null;
-}
+const DEFAULT_NOTE = "ส่งลูกค้าเรียบร้อย";
 
 export async function POST(request) {
   const { lineUserId, jobId, note, photoBase64 } = await request.json();
@@ -38,27 +28,13 @@ export async function POST(request) {
     }
   }
 
-  await completeJob({ jobId, claimerId: user.id, note, photoUrl });
+  await completeJob({
+    jobId,
+    claimerId: user.id,
+    note: note?.trim() || DEFAULT_NOTE,
+    photoUrl,
+  });
 
-  const job = await getJobWithPoster(jobId);
-  const link = detailUrl(jobId);
-  if (job.poster?.line_user_id) {
-    const messages = [
-      {
-        type: "text",
-        text:
-          `📦 งาน "${job.detail}" ปิดงานเรียบร้อยแล้ว\n` +
-          `ผู้รับงาน: ${displayNameOf(user)}` +
-          (note ? `\nหมายเหตุ: ${note}` : ""),
-      },
-    ];
-    if (link) {
-      messages.push(
-        buildLinkButtonMessage("ดูรายละเอียดการปิดงาน", "📋 ดูรายละเอียด", link)
-      );
-    }
-    await pushMessage(job.poster.line_user_id, messages);
-  }
-
+  // ไม่ส่งแจ้งเตือนใดๆ แล้ว ผู้เปิดงานเข้าไปดูในหน้าประวัติงาน/รายละเอียดปิดงานเอาเองแทน (ประหยัดโควตาข้อความ)
   return NextResponse.json({ ok: true });
 }
