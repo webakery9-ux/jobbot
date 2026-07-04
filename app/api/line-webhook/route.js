@@ -1,7 +1,12 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { replyMessage, pushMessage } from "@/lib/line";
-import { getOrCreateUser, getUserBalance, hasPriorJobActivity } from "@/lib/users";
+import {
+  getOrCreateUser,
+  getUserBalance,
+  hasPriorJobActivity,
+  shouldSendProfileReminder,
+} from "@/lib/users";
 import { getOrCreateGroup } from "@/lib/groups";
 import {
   parseJobCommand,
@@ -120,9 +125,11 @@ async function handleGroupMessage(event) {
   const group = await getOrCreateGroup(event.source.groupId);
 
   if (!(await canDoJobAction(poster))) {
-    await replyMessage(event.replyToken, [
-      { type: "text", text: profileRequiredMessage() },
-    ]);
+    if (await shouldSendProfileReminder(poster.id, poster.profile_reminder_sent_at)) {
+      await replyMessage(event.replyToken, [
+        { type: "text", text: profileRequiredMessage() },
+      ]);
+    }
     return;
   }
 
@@ -204,9 +211,11 @@ async function handlePostback(event) {
   const { user: claimer } = await getOrCreateUser(event.source.userId);
 
   if (!(await canDoJobAction(claimer))) {
-    await replyMessage(event.replyToken, [
-      { type: "text", text: profileRequiredMessage() },
-    ]);
+    if (await shouldSendProfileReminder(claimer.id, claimer.profile_reminder_sent_at)) {
+      await replyMessage(event.replyToken, [
+        { type: "text", text: profileRequiredMessage() },
+      ]);
+    }
     return;
   }
 
