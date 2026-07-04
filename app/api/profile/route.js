@@ -10,6 +10,10 @@ export async function POST(request) {
     return NextResponse.json({ error: "missing required fields" }, { status: 400 });
   }
 
+  if (!/^[0-9]{10}$/.test(phone)) {
+    return NextResponse.json({ error: "invalid phone" }, { status: 400 });
+  }
+
   const patch = {
     first_name: firstName,
     last_name: lastName,

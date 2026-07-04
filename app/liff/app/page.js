@@ -411,6 +411,10 @@ function Profile({ lineUserId, displayName, setTab, onSaved }) {
 
   async function save(e) {
     e.preventDefault();
+    if (!/^[0-9]{10}$/.test(form.phone)) {
+      setStatus({ ok: false, text: "กรุณากรอกเบอร์ติดต่อเป็นตัวเลข 10 หลัก" });
+      return;
+    }
     setSaving(true);
     setStatus(null);
     const res = await fetch("/api/profile", {
@@ -473,9 +477,14 @@ function Profile({ lineUserId, displayName, setTab, onSaved }) {
         <input
           required
           type="tel"
-          placeholder="08X-XXX-XXXX"
+          inputMode="numeric"
+          pattern="[0-9]{10}"
+          maxLength={10}
+          placeholder="0812345678"
           value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })
+          }
         />
       </label>
       <label className="field">
