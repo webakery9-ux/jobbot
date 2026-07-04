@@ -10,6 +10,7 @@ import {
   claimJob,
   getJobWithPoster,
   formatThaiDateTime,
+  saveJobQuoteToken,
 } from "@/lib/jobs";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
@@ -124,7 +125,11 @@ async function handleGroupMessage(event) {
       isUrgent: parsed.isUrgent,
     });
 
-    await replyMessage(event.replyToken, [buildJobCardMessage(job, poster)]);
+    const replyResult = await replyMessage(event.replyToken, [
+      buildJobCardMessage(job, poster),
+    ]);
+    const quoteToken = replyResult?.sentMessages?.[0]?.quoteToken;
+    await saveJobQuoteToken(job.id, quoteToken);
 
     const balance = await getUserBalance(poster.id);
     await pushMessage(poster.line_user_id, [
@@ -213,6 +218,17 @@ async function handlePostback(event) {
         creditSuffix(posterBalance),
     },
   ]);
+
+  if (job.group?.line_group_id) {
+    const groupMessage = {
+      type: "text",
+      text: `✅ งานนี้ถูกรับแล้วโดย ${claimer.display_name ?? "-"}`,
+    };
+    if (job.line_quote_token) {
+      groupMessage.quoteToken = job.line_quote_token;
+    }
+    await pushMessage(job.group.line_group_id, [groupMessage]);
+  }
 }
 
 export async function POST(request) {
