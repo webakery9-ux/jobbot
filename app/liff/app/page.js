@@ -14,6 +14,7 @@ export default function DashboardApp() {
   const [tab, setTab] = useState("home");
   const [jobParam, setJobParam] = useState("");
   const [tabStack, setTabStack] = useState([]);
+  const [historyRole, setHistoryRole] = useState("posted");
 
   useEffect(() => {
     async function init() {
@@ -94,8 +95,15 @@ export default function DashboardApp() {
       )}
       {tab === "complete" && <CompleteJob lineUserId={lineUserId} jobId={jobParam} />}
       {tab === "return" && <ReturnJob lineUserId={lineUserId} jobId={jobParam} />}
-      {tab === "job-detail" && <JobDetail jobId={jobParam} />}
-      {tab === "history" && <History lineUserId={lineUserId} goTo={navigate} />}
+      {tab === "job-detail" && <JobDetail jobId={jobParam} lineUserId={lineUserId} />}
+      {tab === "history" && (
+        <History
+          lineUserId={lineUserId}
+          goTo={navigate}
+          role={historyRole}
+          setRole={setHistoryRole}
+        />
+      )}
       {tab === "income" && <Income lineUserId={lineUserId} />}
       {tab === "profile" && (
         <Profile lineUserId={lineUserId} displayName={displayName} setTab={navigate} />
@@ -487,9 +495,8 @@ function filterByDateRange(items, getDate, range, customFrom, customTo) {
   });
 }
 
-function History({ lineUserId, goTo }) {
+function History({ lineUserId, goTo, role, setRole }) {
   const { data, loading } = useDashboard(lineUserId, "history");
-  const [role, setRole] = useState("posted");
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("all");
   const [customFrom, setCustomFrom] = useState("");
@@ -1185,15 +1192,15 @@ function ReturnJob({ lineUserId, jobId }) {
   );
 }
 
-function JobDetail({ jobId }) {
+function JobDetail({ jobId, lineUserId }) {
   const [data, setData] = useState(null);
   useEffect(() => {
     if (!jobId) return;
-    fetch(`/api/dashboard/job-detail?jobId=${jobId}`)
+    fetch(`/api/dashboard/job-detail?jobId=${jobId}&lineUserId=${lineUserId}`)
       .then((r) => r.json())
       .then(setData)
       .catch(() => setData({ error: true }));
-  }, [jobId]);
+  }, [jobId, lineUserId]);
 
   if (!data) return <Loading />;
   if (data.error) return <div className="section center-pad"><p className="empty">ไม่พบข้อมูล</p></div>;
@@ -1244,20 +1251,20 @@ function JobDetail({ jobId }) {
         <div className="profile-summary">
           <p className="summary-head">งานอยู่ที่</p>
           <div className="summary-row">
-            <span>ผู้รับงาน</span>
-            <strong>{currentClaim.claimer?.display_name ?? "-"}</strong>
+            <span>{currentClaim.counterpartyLabel}</span>
+            <strong>{currentClaim.counterpartyName}</strong>
           </div>
-          {currentClaim.claimer?.phone && (
+          {currentClaim.counterpartyPhone && (
             <div className="summary-row">
               <span>เบอร์ติดต่อ</span>
-              <a className="phone-link" href={`tel:${currentClaim.claimer.phone}`}>
-                📞 {currentClaim.claimer.phone}
+              <a className="phone-link" href={`tel:${currentClaim.counterpartyPhone}`}>
+                📞 {currentClaim.counterpartyPhone}
               </a>
             </div>
           )}
           <div className="summary-row">
             <span>รับงานเมื่อ</span>
-            <strong>{formatThaiDateTimeClient(currentClaim.claimed_at)}</strong>
+            <strong>{formatThaiDateTimeClient(currentClaim.claimedAt)}</strong>
           </div>
         </div>
       )}
@@ -1266,35 +1273,35 @@ function JobDetail({ jobId }) {
         <div className="profile-summary">
           <p className="summary-head">รายละเอียดการปิดงาน</p>
           <div className="summary-row">
-            <span>ผู้รับงาน</span>
-            <strong>{doneClaim.claimer?.display_name ?? "-"}</strong>
+            <span>{doneClaim.counterpartyLabel}</span>
+            <strong>{doneClaim.counterpartyName}</strong>
           </div>
-          {doneClaim.claimer?.phone && (
+          {doneClaim.counterpartyPhone && (
             <div className="summary-row">
               <span>เบอร์ติดต่อ</span>
-              <a className="phone-link" href={`tel:${doneClaim.claimer.phone}`}>
-                📞 {doneClaim.claimer.phone}
+              <a className="phone-link" href={`tel:${doneClaim.counterpartyPhone}`}>
+                📞 {doneClaim.counterpartyPhone}
               </a>
             </div>
           )}
           <div className="summary-row">
             <span>รับงานเมื่อ</span>
-            <strong>{formatThaiDateTimeClient(doneClaim.claimed_at)}</strong>
+            <strong>{formatThaiDateTimeClient(doneClaim.claimedAt)}</strong>
           </div>
           <div className="summary-row">
             <span>ปิดงานเมื่อ</span>
-            <strong>{formatThaiDateTimeClient(doneClaim.delivery_at)}</strong>
+            <strong>{formatThaiDateTimeClient(doneClaim.deliveryAt)}</strong>
           </div>
-          {doneClaim.delivery_note && (
+          {doneClaim.deliveryNote && (
             <div className="summary-row">
               <span>หมายเหตุ</span>
-              <strong>{doneClaim.delivery_note}</strong>
+              <strong>{doneClaim.deliveryNote}</strong>
             </div>
           )}
         </div>
       )}
-      {doneClaim?.delivery_photo_url && (
-        <img src={doneClaim.delivery_photo_url} alt="delivery" className="photo-preview" />
+      {doneClaim?.deliveryPhotoUrl && (
+        <img src={doneClaim.deliveryPhotoUrl} alt="delivery" className="photo-preview" />
       )}
     </div>
   );
