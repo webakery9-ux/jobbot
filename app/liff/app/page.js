@@ -641,31 +641,66 @@ function History({ lineUserId, goTo }) {
 
 function Income({ lineUserId }) {
   const { data, loading } = useDashboard(lineUserId, "income");
+  const [period, setPeriod] = useState(null);
   if (loading) return <Loading />;
-  const inc = data?.income ?? { day: 0, week: 0, month: 0, year: 0, all: 0, count: 0 };
+  const inc = data?.income ?? { day: 0, week: 0, month: 0, year: 0, all: 0, count: 0, items: [] };
+  const items = inc.items ?? [];
   const cards = [
-    { label: "วันนี้", value: inc.day },
-    { label: "สัปดาห์นี้", value: inc.week },
-    { label: "เดือนนี้", value: inc.month },
-    { label: "ปีนี้", value: inc.year },
+    { key: "day", label: "วันนี้", value: inc.day },
+    { key: "week", label: "สัปดาห์นี้", value: inc.week },
+    { key: "month", label: "เดือนนี้", value: inc.month },
+    { key: "year", label: "ปีนี้", value: inc.year },
   ];
+
+  const shownItems =
+    period === "all" ? items : period ? items.filter((it) => it[period]) : [];
+  const periodLabel =
+    period === "all"
+      ? "รายได้รวมทั้งหมด"
+      : cards.find((c) => c.key === period)?.label;
+
   return (
     <div className="section">
       <div className="metric-grid">
         {cards.map((c) => (
-          <div key={c.label} className="metric">
+          <button
+            key={c.key}
+            className={`metric ${period === c.key ? "active" : ""}`}
+            onClick={() => setPeriod(period === c.key ? null : c.key)}
+          >
             <span className="metric-label">{c.label}</span>
             <span className="metric-value">{c.value.toLocaleString()}</span>
             <span className="metric-unit">บาท</span>
-          </div>
+          </button>
         ))}
       </div>
-      <div className="total-card">
+      <button
+        className={`total-card ${period === "all" ? "active" : ""}`}
+        onClick={() => setPeriod(period === "all" ? null : "all")}
+      >
         <span>รายได้รวมทั้งหมด</span>
         <strong>
           {inc.all.toLocaleString()} บาท ({inc.count} งาน)
         </strong>
-      </div>
+      </button>
+
+      {period && (
+        <>
+          <p className="subhead" style={{ marginTop: 20 }}>
+            รายการงาน{periodLabel} ({shownItems.length})
+          </p>
+          {shownItems.length === 0 && <p className="empty small">ยังไม่มี</p>}
+          {shownItems.map((it) => (
+            <div key={it.id} className="hist-row">
+              <p className="hist-detail">{it.detail}</p>
+              <p className="hist-meta">
+                {it.wage} บาท · {it.paymentMethod} · {it.groupName || "-"}
+              </p>
+              <p className="hist-date">{formatThaiDateTimeClient(it.claimedAt)}</p>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -1278,11 +1313,13 @@ const styles = `
   .hist-btn { flex: 1; padding: 9px; font-size: 13px; font-weight: 700; border-radius: 8px; border: 1px solid ${ACCENT}; background: #fff; color: ${ACCENT}; }
   .hist-btn.primary { background: ${ACCENT}; color: #fff; border: none; }
   .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .metric { background: #fff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); }
+  .metric { background: #fff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); border: 2px solid transparent; text-align: left; width: 100%; cursor: pointer; }
+  .metric.active { border-color: ${ACCENT}; }
   .metric-label { font-size: 13px; color: #888; }
   .metric-value { font-size: 26px; font-weight: 700; color: ${ACCENT}; }
   .metric-unit { font-size: 12px; color: #aaa; }
-  .total-card { background: #fff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); font-size: 15px; color: #555; }
+  .total-card { background: #fff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); font-size: 15px; color: #555; border: 2px solid transparent; text-align: left; width: 100%; cursor: pointer; }
+  .total-card.active { border-color: ${ACCENT}; }
   .total-card strong { font-size: 20px; color: #222; }
   .empty { text-align: center; color: #999; font-size: 15px; padding: 12px; }
   .empty.small { padding: 4px; font-size: 14px; }
