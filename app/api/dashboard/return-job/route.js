@@ -24,7 +24,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "claim not found" }, { status: 404 });
   }
 
-  await returnJob({ jobId, claimerId: user.id });
+  const returnedClaim = await returnJob({ jobId, claimerId: user.id });
 
   const job = await getJobWithPoster(jobId);
 
@@ -38,10 +38,13 @@ export async function POST(request) {
     ]);
   }
 
-  // โพสต์การ์ดงานกลับเข้ากลุ่มเดิมให้คนอื่นรับต่อได้
+  // โพสต์การ์ดงานกลับเข้ากลุ่มเดิมให้คนอื่นรับต่อได้ ระบุว่าใครคืนงานเมื่อไหร่
   if (job.group?.line_group_id) {
     const result = await pushMessage(job.group.line_group_id, [
-      buildJobCardMessage(job, job.poster),
+      buildJobCardMessage(job, job.poster, {
+        returnedBy: displayNameOf(user),
+        returnedAt: returnedClaim.released_at,
+      }),
     ]);
     const quoteToken = result?.body?.sentMessages?.[0]?.quoteToken;
     await saveJobQuoteToken(job.id, quoteToken);
