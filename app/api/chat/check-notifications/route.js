@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { pushMessage } from "@/lib/line";
+import { buildChatNotifyMessage, chatUrl } from "@/lib/jobs";
 
 const DEBOUNCE_MS = 10_000;
 
@@ -10,13 +11,10 @@ export async function POST(request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const cutoff = new Date(Date.now() - DEBOUNCE_MS).toISOString();
-
   const { data: pending, error } = await supabase
     .from("chat_messages")
     .select("id, job_id, sender_id, content, created_at")
-    .is("notified_at", null)
-    .lt("created_at", cutoff);
+    .is("notified_at", null);
 
   if (error) throw error;
   if (!pending || pending.length === 0) {
@@ -30,9 +28,14 @@ export async function POST(request) {
     groups.get(key).push(msg);
   }
 
-  const chatLiffId = process.env.NEXT_PUBLIC_CHAT_LIFF_ID;
+  const now = Date.now();
+  let processed = 0;
 
   for (const [key, msgs] of groups) {
+    // ยังพิมพ์ต่ออยู่ (ข้อความล่าสุดยังไม่นิ่งครบ 10 วิ) รอรอบถัดไปค่อยรวมส่ง
+    const latestCreatedAt = Math.max(...msgs.map((m) => new Date(m.created_at).getTime()));
+    if (now - latestCreatedAt < DEBOUNCE_MS) continue;
+
     const [jobId, senderId] = key.split(":");
 
     const { data: job } = await supabase
@@ -49,7 +52,9 @@ export async function POST(request) {
       .is("released_at", null)
       .maybeSingle();
 
-    const recipientId = job.poster_id === senderId ? claim?.claimed_by : job.poster_id;
+    const isSenderPoster = job.poster_id === senderId;
+    const recipientId = isSenderPoster ? claim?.claimed_by : job.poster_id;
+    const counterpartLabel = isSenderPoster ? "เจ้าของงาน" : "ผู้รับงาน";
 
     if (recipientId) {
       const { data: recipient } = await supabase
@@ -64,16 +69,17 @@ export async function POST(request) {
         .single();
 
       if (recipient?.line_user_id) {
-        const chatUrl = chatLiffId ? `https://liff.line.me/${chatLiffId}/${jobId}` : null;
-        await pushMessage(recipient.line_user_id, [
-          {
-            type: "text",
-            text:
-              `💬 ${sender?.display_name ?? "-"} ส่งข้อความถึงคุณ (${msgs.length} ข้อความ)\n` +
-              `งาน: ${job.detail}` +
-              (chatUrl ? `\n\nเปิดแชท: ${chatUrl}` : ""),
-          },
-        ]);
+        const uri = chatUrl(jobId);
+        if (uri) {
+          await pushMessage(recipient.line_user_id, [
+            buildChatNotifyMessage({
+              counterpartLabel,
+              senderName: sender?.display_name ?? "-",
+              jobDetail: job.detail,
+              chatUri: uri,
+            }),
+          ]);
+        }
       }
     }
 
@@ -82,7 +88,8 @@ export async function POST(request) {
       .from("chat_messages")
       .update({ notified_at: new Date().toISOString() })
       .in("id", ids);
+    processed += msgs.length;
   }
 
-  return NextResponse.json({ processed: pending.length });
+  return NextResponse.json({ processed });
 }
