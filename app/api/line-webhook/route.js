@@ -12,19 +12,15 @@ import {
   parseJobCommand,
   postJob,
   buildJobCardMessage,
+  buildJobPostedCard,
   claimJob,
   getJobWithPoster,
-  formatThaiDateTime,
-  displayNameOf,
   buildGroupClaimedMessage,
   buildClaimedCard,
-  buildLinkButtonMessage,
-  buildPhoneButtonMessage,
   saveJobQuoteToken,
 } from "@/lib/jobs";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
-const LOW_CREDIT_THRESHOLD = 20;
 
 function isValidSignature(rawBody, signature) {
   const hash = crypto
@@ -39,21 +35,6 @@ function profileFormUrl() {
   if (mgmtId) return `https://liff.line.me/${mgmtId}?tab=profile`;
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
   return liffId ? `https://liff.line.me/${liffId}` : null;
-}
-
-function chatUrl(jobId) {
-  const liffId = process.env.NEXT_PUBLIC_CHAT_LIFF_ID;
-  return liffId ? `https://liff.line.me/${liffId}/${jobId}` : null;
-}
-
-function creditSuffix(balance) {
-  let text = `\n\nเครดิตคงเหลือของคุณ: ${balance}`;
-  if (balance <= LOW_CREDIT_THRESHOLD) {
-    text +=
-      "\n\n⚠️ เครดิตใกล้หมด กรุณาเติมเครดิตไว้ให้เพียงพอ เพื่อให้สามารถจ่ายงาน-รับงานได้ต่อเนื่อง " +
-      "ตรวจสอบเครดิตได้ที่ปุ่มเช็คเครดิต ขอขอบคุณที่สนับสนุนครับ";
-  }
-  return text;
 }
 
 function profileReminder(user) {
@@ -77,10 +58,6 @@ function profileRequiredMessage() {
 async function canDoJobAction(user) {
   if (user.profile_completed) return true;
   return !(await hasPriorJobActivity(user.id));
-}
-
-function personLine(user) {
-  return displayNameOf(user);
 }
 
 // ส่ง DM หา user ถ้าส่งไม่ได้ (ยังไม่แอดเพื่อน) ให้ประกาศ fallback เข้ากลุ่มแทน
@@ -183,6 +160,15 @@ async function handleGroupMessage(event) {
     ]);
     const quoteToken = replyResult?.sentMessages?.[0]?.quoteToken;
     await saveJobQuoteToken(job.id, quoteToken);
+
+    const balance = await getUserBalance(poster.id);
+    const extraNote = profileReminder(poster).trim() || null;
+    await notifyUser({
+      user: poster,
+      lineGroupId: event.source.groupId,
+      messages: [buildJobPostedCard(job, balance, extraNote)],
+      fallbackText: `เปิดงาน "${job.detail}" สำเร็จครับ${profileReminder(poster)}`,
+    });
   } catch (err) {
     if (err.message?.includes("INSUFFICIENT_CREDIT")) {
       await replyMessage(event.replyToken, [
@@ -268,7 +254,6 @@ async function handlePostback(event) {
   if (job.group_id) await linkUserToGroup(claimer.id, job.group_id, "worker");
 
   const claimerBalance = await getUserBalance(claimer.id);
-  const chatLink = chatUrl(job.id);
 
   const claimerMessages = [buildClaimedCard(job, poster, claim, claimerBalance)];
   const claimerReminder = profileReminder(claimer);
@@ -285,34 +270,7 @@ async function handlePostback(event) {
     )}`,
   });
 
-  const posterBalance = await getUserBalance(poster.id);
-  const posterMessages = [
-    {
-      type: "text",
-      text:
-        `🎉 มีคนรับงานแล้ว!\n` +
-        `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
-        `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
-        creditSuffix(posterBalance) +
-        profileReminder(poster),
-    },
-  ];
-  if (claimer?.phone) {
-    posterMessages.push(buildPhoneButtonMessage(personLine(claimer), claimer.phone));
-  }
-  if (chatLink) {
-    posterMessages.push(buildLinkButtonMessage("เปิดแชทคุยกับผู้รับงาน", "💬 เปิดแชท", chatLink));
-  }
-
-  await notifyUser({
-    user: poster,
-    lineGroupId: job.group?.line_group_id,
-    messages: posterMessages,
-    fallbackText: `งาน "${job.detail}" มีคนรับแล้วครับ (ส่งข้อมูลติดต่อไม่ได้เพราะยังไม่ได้เพิ่มเพื่อนบอท)${profileReminder(
-      poster
-    )}`,
-  });
-
+  // ไม่ส่ง DM หาผู้เปิดงานแล้ว (ให้เข้าไปดูในระบบ/ประวัติงานเอง) ประกาศแค่ในกลุ่มพอ
   if (job.group?.line_group_id) {
     const groupMessage = buildGroupClaimedMessage(claimer, poster, job.line_quote_token);
     await pushMessage(job.group.line_group_id, [groupMessage]);
