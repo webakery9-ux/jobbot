@@ -2,11 +2,14 @@ const sharp = require("sharp");
 const path = require("path");
 
 const WIDTH = 2500;
-const HEIGHT = 1686;
+const ROW_H = 420;
+const HEIGHT = 840;
 const COLS = 3;
 const ROWS = 2;
 const COL_W = [834, 833, 833];
-const ROW_H = 843;
+const CIRCLE_R = 150;
+const TOP_MARGIN = 25;
+const ICON_LABEL_GAP = 40;
 const ACCENT = "#06C755";
 const LABEL_COLOR = "#3C3C3C";
 const DIVIDER = "#BEBEBE";
@@ -71,15 +74,15 @@ function buildSvg() {
       const w = COL_W[col];
       const item = items[row * COLS + col];
       const cx = x + w / 2;
-      const cy = row * ROW_H + ROW_H / 2 - 40;
-      const circleCy = row * ROW_H + ROW_H * 0.36;
+      const circleCy = row * ROW_H + TOP_MARGIN + CIRCLE_R;
+      const labelY = circleCy + CIRCLE_R + ICON_LABEL_GAP;
 
       cellsSvg += `
-        <circle cx="${cx}" cy="${circleCy}" r="160" fill="${ACCENT}"/>
-        <g transform="translate(${cx},${circleCy}) scale(1.7) translate(${-cx},${-circleCy})">
+        <circle cx="${cx}" cy="${circleCy}" r="${CIRCLE_R}" fill="${ACCENT}"/>
+        <g transform="translate(${cx},${circleCy}) scale(1.6) translate(${-cx},${-circleCy})">
           ${iconPath(item.icon, cx, circleCy)}
         </g>
-        <text x="${cx}" y="${circleCy + 340}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="88" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
+        <text x="${cx}" y="${labelY}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="60" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
       `;
       x += w;
     }
