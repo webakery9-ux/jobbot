@@ -2,13 +2,13 @@ const sharp = require("sharp");
 const path = require("path");
 
 const WIDTH = 2500;
-const ROW_H = 460;
-const HEIGHT = 920;
+const ROW_H = 490;
+const HEIGHT = 980;
 const COLS = 3;
 const ROWS = 2;
 const COL_W = [834, 833, 833];
 const CIRCLE_R = 150;
-const TOP_MARGIN = 25;
+const TOP_MARGIN = 55;
 const ICON_LABEL_GAP = 85;
 const ACCENT = "#06C755";
 const LABEL_COLOR = "#3C3C3C";
