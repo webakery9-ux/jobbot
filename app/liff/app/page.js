@@ -515,8 +515,6 @@ function History({ lineUserId, goTo }) {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-
-      <p className="subhead">งานที่ฉันจ่าย ({postedFiltered.length})</p>
       <div className="tabs">
         {dateTabs.map((t) => (
           <button
@@ -539,6 +537,8 @@ function History({ lineUserId, goTo }) {
           <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
         </div>
       )}
+
+      <p className="subhead">งานที่ฉันจ่าย ({postedFiltered.length})</p>
       {postedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
       {postedFiltered.map((j) => (
         <div key={j.id} className="hist-row">
