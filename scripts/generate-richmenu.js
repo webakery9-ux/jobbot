@@ -2,14 +2,14 @@ const sharp = require("sharp");
 const path = require("path");
 
 const WIDTH = 2500;
-const ROW_H = 420;
-const HEIGHT = 840;
+const ROW_H = 460;
+const HEIGHT = 920;
 const COLS = 3;
 const ROWS = 2;
 const COL_W = [834, 833, 833];
 const CIRCLE_R = 150;
 const TOP_MARGIN = 25;
-const ICON_LABEL_GAP = 65;
+const ICON_LABEL_GAP = 85;
 const ACCENT = "#06C755";
 const LABEL_COLOR = "#3C3C3C";
 const DIVIDER = "#BEBEBE";
@@ -82,7 +82,7 @@ function buildSvg() {
         <g transform="translate(${cx},${circleCy}) scale(1.6) translate(${-cx},${-circleCy})">
           ${iconPath(item.icon, cx, circleCy)}
         </g>
-        <text x="${cx}" y="${labelY}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="60" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
+        <text x="${cx}" y="${labelY}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="68" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
       `;
       x += w;
     }

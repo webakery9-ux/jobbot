@@ -11,17 +11,17 @@ const mgmt = process.env.NEXT_PUBLIC_MGMT_LIFF_ID;
 const liffBase = `https://liff.line.me/${mgmt}`;
 
 const richMenuDef = {
-  size: { width: 2500, height: 840 },
+  size: { width: 2500, height: 920 },
   selected: true,
-  name: "JobBot main menu v7",
+  name: "JobBot main menu v8",
   chatBarText: "เมนู",
   areas: [
-    { bounds: { x: 0, y: 0, width: 834, height: 420 }, action: { type: "uri", label: "รับงาน", uri: `${liffBase}?tab=jobs` } },
-    { bounds: { x: 834, y: 0, width: 833, height: 420 }, action: { type: "uri", label: "โพสต์งาน", uri: `${liffBase}?tab=post` } },
-    { bounds: { x: 1667, y: 0, width: 833, height: 420 }, action: { type: "uri", label: "ประวัติงาน", uri: `${liffBase}?tab=history` } },
-    { bounds: { x: 0, y: 420, width: 834, height: 420 }, action: { type: "uri", label: "สรุปรายได้", uri: `${liffBase}?tab=income` } },
-    { bounds: { x: 834, y: 420, width: 833, height: 420 }, action: { type: "uri", label: "เติมเครดิต", uri: `${liffBase}?tab=credit` } },
-    { bounds: { x: 1667, y: 420, width: 833, height: 420 }, action: { type: "uri", label: "ข้อมูลส่วนตัว", uri: `${liffBase}?tab=profile` } },
+    { bounds: { x: 0, y: 0, width: 834, height: 460 }, action: { type: "uri", label: "รับงาน", uri: `${liffBase}?tab=jobs` } },
+    { bounds: { x: 834, y: 0, width: 833, height: 460 }, action: { type: "uri", label: "โพสต์งาน", uri: `${liffBase}?tab=post` } },
+    { bounds: { x: 1667, y: 0, width: 833, height: 460 }, action: { type: "uri", label: "ประวัติงาน", uri: `${liffBase}?tab=history` } },
+    { bounds: { x: 0, y: 460, width: 834, height: 460 }, action: { type: "uri", label: "สรุปรายได้", uri: `${liffBase}?tab=income` } },
+    { bounds: { x: 834, y: 460, width: 833, height: 460 }, action: { type: "uri", label: "เติมเครดิต", uri: `${liffBase}?tab=credit` } },
+    { bounds: { x: 1667, y: 460, width: 833, height: 460 }, action: { type: "uri", label: "ข้อมูลส่วนตัว", uri: `${liffBase}?tab=profile` } },
   ],
 };
 
