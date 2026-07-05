@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
 import liff from "@line/liff";
 
 export default function ChatPage() {
-  const { jobId } = useParams();
+  const [jobId, setJobId] = useState("");
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [lineUserId, setLineUserId] = useState("");
@@ -16,6 +15,9 @@ export default function ChatPage() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setJobId(params.get("job") || "");
+
     async function init() {
       try {
         await liff.init({ liffId: process.env.NEXT_PUBLIC_CHAT_LIFF_ID });
@@ -34,7 +36,7 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !jobId) return;
     let cancelled = false;
 
     async function poll() {
@@ -84,7 +86,15 @@ export default function ChatPage() {
     return <main style={{ padding: 24, fontFamily: "sans-serif" }}>{error}</main>;
   }
 
-  if (!ready || !job) {
+  if (!ready) {
+    return <main style={{ padding: 24, fontFamily: "sans-serif" }}>กำลังโหลด...</main>;
+  }
+
+  if (!jobId) {
+    return <main style={{ padding: 24, fontFamily: "sans-serif" }}>ไม่พบงานที่ต้องการแชท</main>;
+  }
+
+  if (!job) {
     return <main style={{ padding: 24, fontFamily: "sans-serif" }}>กำลังโหลด...</main>;
   }
 
