@@ -74,7 +74,8 @@ BEGIN
 
   v_fee := v_claim.platform_fee;
 
-  UPDATE job_claims SET released_at = now() WHERE id = v_claim.id;
+  UPDATE job_claims SET released_at = now() WHERE id = v_claim.id
+    RETURNING * INTO v_claim;
   UPDATE jobs SET status = 'open' WHERE id = p_job_id;
   UPDATE users SET wallet_balance = wallet_balance + v_fee WHERE id = p_claimer_id;
 
