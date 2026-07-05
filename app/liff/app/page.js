@@ -870,6 +870,7 @@ function Claim({ lineUserId, displayName, jobId }) {
   // phase: init | friend | profile | claiming | done
   const [phase, setPhase] = useState("init");
   const [addFriendUrl, setAddFriendUrl] = useState("#");
+  const [isFriend, setIsFriend] = useState(true);
   const [result, setResult] = useState(null);
 
   const doClaim = useCallback(async () => {
@@ -919,6 +920,11 @@ function Claim({ lineUserId, displayName, jobId }) {
       .then((r) => r.json())
       .then((info) => setAddFriendUrl(info.addFriendUrl || "#"))
       .catch(() => {});
+
+    liff
+      .getFriendship()
+      .then((f) => setIsFriend(!!f.friendFlag))
+      .catch(() => {});
   }, [lineUserId, displayName]);
 
   useEffect(() => {
@@ -964,7 +970,7 @@ function Claim({ lineUserId, displayName, jobId }) {
         {result.type === "success" ? "✓" : "!"}
       </div>
       <p className="result-text">{result.text}</p>
-      {result.type === "success" && addFriendUrl !== "#" && (
+      {result.type === "success" && !isFriend && addFriendUrl !== "#" && (
         <a className="ghost-btn" href={addFriendUrl}>
           เพิ่มเพื่อน JobBotTH (รับการแจ้งเตือนในอนาคต)
         </a>
