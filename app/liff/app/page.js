@@ -477,6 +477,7 @@ function filterByDateRange(items, getDate, range, customFrom, customTo) {
 
 function History({ lineUserId, goTo }) {
   const { data, loading } = useDashboard(lineUserId, "history");
+  const [role, setRole] = useState("posted");
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState("all");
   const [customFrom, setCustomFrom] = useState("");
@@ -485,6 +486,8 @@ function History({ lineUserId, goTo }) {
   if (loading) return <Loading />;
   const posted = data?.posted ?? [];
   const claimed = data?.claimed ?? [];
+  const claimedActive = claimed.filter((c) => !c.released_at);
+  const returned = claimed.filter((c) => c.released_at);
 
   const q = search.trim().toLowerCase();
   const postedFiltered = filterByDateRange(
@@ -494,9 +497,26 @@ function History({ lineUserId, goTo }) {
     customFrom,
     customTo
   );
-  const claimedFiltered = q
-    ? claimed.filter((c) => c.job?.detail?.toLowerCase().includes(q))
-    : claimed;
+  const claimedFiltered = filterByDateRange(
+    q ? claimedActive.filter((c) => c.job?.detail?.toLowerCase().includes(q)) : claimedActive,
+    (c) => c.claimed_at,
+    dateRange,
+    customFrom,
+    customTo
+  );
+  const returnedFiltered = filterByDateRange(
+    q ? returned.filter((c) => c.job?.detail?.toLowerCase().includes(q)) : returned,
+    (c) => c.released_at,
+    dateRange,
+    customFrom,
+    customTo
+  );
+
+  const roleTabs = [
+    { key: "posted", label: `จ่ายงาน (${postedFiltered.length})` },
+    { key: "claimed", label: `รับงาน (${claimedFiltered.length})` },
+    { key: "returned", label: `คืนงาน (${returnedFiltered.length})` },
+  ];
 
   const dateTabs = [
     { key: "all", label: "ทั้งหมด" },
@@ -508,6 +528,17 @@ function History({ lineUserId, goTo }) {
 
   return (
     <div className="section">
+      <div className="tabs">
+        {roleTabs.map((t) => (
+          <button
+            key={t.key}
+            className={`tab ${role === t.key ? "active" : ""}`}
+            onClick={() => setRole(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
       <input
         className="hist-search"
         type="text"
@@ -538,53 +569,72 @@ function History({ lineUserId, goTo }) {
         </div>
       )}
 
-      <p className="subhead">งานที่ฉันจ่าย ({postedFiltered.length})</p>
-      {postedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
-      {postedFiltered.map((j) => (
-        <div key={j.id} className="hist-row">
-          <p className="hist-detail">{j.detail}</p>
-          <p className="hist-meta">
-            {j.wage} บาท · {j.payment_method} · {statusLabel(j.status)} ·{" "}
-            {j.group?.group_name || "-"}
-          </p>
-          <p className="hist-date">{formatThaiDateTimeClient(j.created_at)}</p>
-          {j.status === "done" && (
-            <button className="hist-btn" onClick={() => goTo("job-detail", j.id)}>
-              📋 ดูรายละเอียดการปิดงาน
-            </button>
-          )}
-        </div>
-      ))}
+      {role === "posted" && (
+        <>
+          {postedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
+          {postedFiltered.map((j) => (
+            <div key={j.id} className="hist-row">
+              <p className="hist-detail">{j.detail}</p>
+              <p className="hist-meta">
+                {j.wage} บาท · {j.payment_method} · {statusLabel(j.status)} ·{" "}
+                {j.group?.group_name || "-"}
+              </p>
+              <p className="hist-date">{formatThaiDateTimeClient(j.created_at)}</p>
+              {j.status === "done" && (
+                <button className="hist-btn" onClick={() => goTo("job-detail", j.id)}>
+                  📋 ดูรายละเอียดการปิดงาน
+                </button>
+              )}
+            </div>
+          ))}
+        </>
+      )}
 
-      <p className="subhead" style={{ marginTop: 20 }}>
-        งานที่ฉันรับ ({claimedFiltered.length})
-      </p>
-      {claimedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
-      {claimedFiltered.map((c) => {
-        const isActive = !c.released_at && c.job?.status === "claimed";
-        return (
-          <div key={c.id} className="hist-row">
-            <p className="hist-detail">{c.job?.detail || "-"}</p>
-            <p className="hist-meta">
-              {c.job?.wage} บาท · {c.job?.payment_method} · จาก{" "}
-              {c.job?.poster?.display_name || "-"}
-              {c.released_at ? " · คืนงานแล้ว" : ""}
-              {c.job?.status === "done" ? " · จบงานแล้ว" : ""}
-            </p>
-            <p className="hist-date">{formatThaiDateTimeClient(c.claimed_at)}</p>
-            {isActive && (
-              <div className="hist-actions">
-                <button className="hist-btn primary" onClick={() => goTo("complete", c.job.id)}>
-                  ✅ จบงาน
-                </button>
-                <button className="hist-btn" onClick={() => goTo("return", c.job.id)}>
-                  ↩️ คืนงาน
-                </button>
+      {role === "claimed" && (
+        <>
+          {claimedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
+          {claimedFiltered.map((c) => {
+            const isActive = !c.released_at && c.job?.status === "claimed";
+            return (
+              <div key={c.id} className="hist-row">
+                <p className="hist-detail">{c.job?.detail || "-"}</p>
+                <p className="hist-meta">
+                  {c.job?.wage} บาท · {c.job?.payment_method} · จาก{" "}
+                  {c.job?.poster?.display_name || "-"}
+                  {c.job?.status === "done" ? " · จบงานแล้ว" : ""}
+                </p>
+                <p className="hist-date">{formatThaiDateTimeClient(c.claimed_at)}</p>
+                {isActive && (
+                  <div className="hist-actions">
+                    <button className="hist-btn primary" onClick={() => goTo("complete", c.job.id)}>
+                      ✅ จบงาน
+                    </button>
+                    <button className="hist-btn" onClick={() => goTo("return", c.job.id)}>
+                      ↩️ คืนงาน
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </>
+      )}
+
+      {role === "returned" && (
+        <>
+          {returnedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
+          {returnedFiltered.map((c) => (
+            <div key={c.id} className="hist-row">
+              <p className="hist-detail">{c.job?.detail || "-"}</p>
+              <p className="hist-meta">
+                {c.job?.wage} บาท · {c.job?.payment_method} · จาก{" "}
+                {c.job?.poster?.display_name || "-"} · คืนงานแล้ว
+              </p>
+              <p className="hist-date">{formatThaiDateTimeClient(c.released_at)}</p>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }
