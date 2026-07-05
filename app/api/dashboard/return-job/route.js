@@ -28,16 +28,7 @@ export async function POST(request) {
 
   const job = await getJobWithPoster(jobId);
 
-  // แจ้งผู้เปิดงานว่างานถูกคืน
-  if (job.poster?.line_user_id) {
-    await pushMessage(job.poster.line_user_id, [
-      {
-        type: "text",
-        text: `↩️ ${displayNameOf(user)} คืนงาน "${job.detail}" กลับเข้ากลุ่มแล้วครับ`,
-      },
-    ]);
-  }
-
+  // ไม่ส่ง DM หาผู้เปิดงานแล้ว ประกาศแค่ในกลุ่มพอ (การ์ดกลุ่มระบุคนคืน/เวลาคืนอยู่แล้ว)
   // โพสต์การ์ดงานกลับเข้ากลุ่มเดิมให้คนอื่นรับต่อได้ ระบุว่าใครคืนงานเมื่อไหร่
   if (job.group?.line_group_id) {
     const result = await pushMessage(job.group.line_group_id, [
