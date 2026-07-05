@@ -95,6 +95,7 @@ function buildSvg() {
   dividers += `<line x1="${COL_W[0] + COL_W[1]}" y1="${ROW_H}" x2="${COL_W[0] + COL_W[1]}" y2="${HEIGHT}" stroke="${DIVIDER}" stroke-width="6"/>`;
   dividers += `<line x1="0" y1="${ROW_H}" x2="${WIDTH}" y2="${ROW_H}" stroke="${DIVIDER}" stroke-width="6"/>`;
   dividers += `<line x1="0" y1="${HEIGHT - 4}" x2="${WIDTH}" y2="${HEIGHT - 4}" stroke="${DIVIDER}" stroke-width="8"/>`;
+  dividers += `<line x1="0" y1="4" x2="${WIDTH}" y2="4" stroke="${DIVIDER}" stroke-width="8"/>`;
 
   return `
     <svg width="${WIDTH}" height="${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
