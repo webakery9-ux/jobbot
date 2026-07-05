@@ -156,6 +156,22 @@ function useDashboard(lineUserId, section) {
 
 const LOW_CREDIT_THRESHOLD = 20;
 
+function formatThaiDateTimeClient(dateInput) {
+  const d = new Date(dateInput);
+  const dateStr = d.toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Bangkok",
+  });
+  const timeStr = d.toLocaleTimeString("th-TH", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Bangkok",
+  });
+  return `${dateStr} ${timeStr} น.`;
+}
+
 function Home({ setTab, lineUserId }) {
   const { data } = useDashboard(lineUserId, "home");
   const items = [
@@ -1000,6 +1016,18 @@ function JobDetail({ jobId }) {
             <a className="phone-link" href={`tel:${claim.claimer.phone}`}>
               📞 {claim.claimer.phone}
             </a>
+          </div>
+        )}
+        {claim?.claimed_at && (
+          <div className="summary-row">
+            <span>รับงานเมื่อ</span>
+            <strong>{formatThaiDateTimeClient(claim.claimed_at)}</strong>
+          </div>
+        )}
+        {claim?.delivery_at && (
+          <div className="summary-row">
+            <span>ปิดงานเมื่อ</span>
+            <strong>{formatThaiDateTimeClient(claim.delivery_at)}</strong>
           </div>
         )}
         {claim?.delivery_note && (
