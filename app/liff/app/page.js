@@ -451,21 +451,102 @@ function OpenJobs({ lineUserId, setTab }) {
   );
 }
 
+function startOfDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function filterByDateRange(items, getDate, range, customFrom, customTo) {
+  if (range === "all") return items;
+  const today = startOfDay(new Date());
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  return items.filter((item) => {
+    const t = new Date(getDate(item));
+    if (range === "today") return startOfDay(t).getTime() === today.getTime();
+    if (range === "yesterday") return startOfDay(t).getTime() === yesterday.getTime();
+    if (range === "older") return startOfDay(t).getTime() < yesterday.getTime();
+    if (range === "custom") {
+      if (customFrom && t < new Date(customFrom + "T00:00:00")) return false;
+      if (customTo && t > new Date(customTo + "T23:59:59")) return false;
+      return true;
+    }
+    return true;
+  });
+}
+
 function History({ lineUserId, goTo }) {
   const { data, loading } = useDashboard(lineUserId, "history");
+  const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
   if (loading) return <Loading />;
   const posted = data?.posted ?? [];
   const claimed = data?.claimed ?? [];
+
+  const q = search.trim().toLowerCase();
+  const postedFiltered = filterByDateRange(
+    q ? posted.filter((j) => j.detail?.toLowerCase().includes(q)) : posted,
+    (j) => j.created_at,
+    dateRange,
+    customFrom,
+    customTo
+  );
+  const claimedFiltered = q
+    ? claimed.filter((c) => c.job?.detail?.toLowerCase().includes(q))
+    : claimed;
+
+  const dateTabs = [
+    { key: "all", label: "ทั้งหมด" },
+    { key: "today", label: "วันนี้" },
+    { key: "yesterday", label: "เมื่อวาน" },
+    { key: "older", label: "วันก่อน" },
+    { key: "custom", label: "📅 กำหนดเอง" },
+  ];
+
   return (
     <div className="section">
-      <p className="subhead">งานที่ฉันจ่าย ({posted.length})</p>
-      {posted.length === 0 && <p className="empty small">ยังไม่มี</p>}
-      {posted.map((j) => (
+      <input
+        className="hist-search"
+        type="text"
+        placeholder="🔍 ค้นหางาน..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      <p className="subhead">งานที่ฉันจ่าย ({postedFiltered.length})</p>
+      <div className="tabs">
+        {dateTabs.map((t) => (
+          <button
+            key={t.key}
+            className={`tab ${dateRange === t.key ? "active" : ""}`}
+            onClick={() => setDateRange(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {dateRange === "custom" && (
+        <div className="date-range-picker">
+          <input
+            type="date"
+            value={customFrom}
+            onChange={(e) => setCustomFrom(e.target.value)}
+          />
+          <span>ถึง</span>
+          <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+        </div>
+      )}
+      {postedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
+      {postedFiltered.map((j) => (
         <div key={j.id} className="hist-row">
           <p className="hist-detail">{j.detail}</p>
           <p className="hist-meta">
             {j.wage} บาท · {statusLabel(j.status)} · {j.group?.group_name || "-"}
           </p>
+          <p className="hist-date">{formatThaiDateTimeClient(j.created_at)}</p>
           {j.status === "done" && (
             <button className="hist-btn" onClick={() => goTo("job-detail", j.id)}>
               📋 ดูรายละเอียดการปิดงาน
@@ -473,11 +554,12 @@ function History({ lineUserId, goTo }) {
           )}
         </div>
       ))}
+
       <p className="subhead" style={{ marginTop: 20 }}>
-        งานที่ฉันรับ ({claimed.length})
+        งานที่ฉันรับ ({claimedFiltered.length})
       </p>
-      {claimed.length === 0 && <p className="empty small">ยังไม่มี</p>}
-      {claimed.map((c) => {
+      {claimedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
+      {claimedFiltered.map((c) => {
         const isActive = !c.released_at && c.job?.status === "claimed";
         return (
           <div key={c.id} className="hist-row">
@@ -487,6 +569,7 @@ function History({ lineUserId, goTo }) {
               {c.released_at ? " · คืนงานแล้ว" : ""}
               {c.job?.status === "done" ? " · จบงานแล้ว" : ""}
             </p>
+            <p className="hist-date">{formatThaiDateTimeClient(c.claimed_at)}</p>
             {isActive && (
               <div className="hist-actions">
                 <button className="hist-btn primary" onClick={() => goTo("complete", c.job.id)}>
@@ -1135,6 +1218,10 @@ const styles = `
   .hist-row { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; }
   .hist-meta { font-size: 13px; color: #777; margin: 0; }
+  .hist-date { font-size: 12px; color: #aaa; margin: 4px 0 0; }
+  .hist-search { margin-bottom: 4px; }
+  .date-range-picker { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; margin-top: -4px; }
+  .date-range-picker input { flex: 1; padding: 8px 10px; font-size: 13px; }
   .hist-actions { display: flex; gap: 8px; margin-top: 10px; }
   .hist-btn { flex: 1; padding: 9px; font-size: 13px; font-weight: 700; border-radius: 8px; border: 1px solid ${ACCENT}; background: #fff; color: ${ACCENT}; }
   .hist-btn.primary { background: ${ACCENT}; color: #fff; border: none; }
