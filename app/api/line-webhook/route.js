@@ -17,7 +17,7 @@ import {
   formatThaiDateTime,
   displayNameOf,
   buildGroupClaimedMessage,
-  buildClaimedActionsCard,
+  buildClaimedCard,
   buildLinkButtonMessage,
   buildPhoneButtonMessage,
   saveJobQuoteToken,
@@ -270,21 +270,11 @@ async function handlePostback(event) {
   const claimerBalance = await getUserBalance(claimer.id);
   const chatLink = chatUrl(job.id);
 
-  const claimerMessages = [
-    {
-      type: "text",
-      text:
-        `✅ คุณได้รับงานนี้แล้ว!\n` +
-        `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
-        `ผู้จ้างงาน: ${personLine(poster)}\n${formatThaiDateTime(claim.claimed_at)}` +
-        creditSuffix(claimerBalance) +
-        profileReminder(claimer),
-    },
-  ];
-  if (poster?.phone) {
-    claimerMessages.push(buildPhoneButtonMessage(personLine(poster), poster.phone));
+  const claimerMessages = [buildClaimedCard(job, poster, claim, claimerBalance)];
+  const claimerReminder = profileReminder(claimer);
+  if (claimerReminder) {
+    claimerMessages.push({ type: "text", text: claimerReminder.trim() });
   }
-  claimerMessages.push(buildClaimedActionsCard(job));
 
   await notifyUser({
     user: claimer,
