@@ -544,7 +544,8 @@ function History({ lineUserId, goTo }) {
         <div key={j.id} className="hist-row">
           <p className="hist-detail">{j.detail}</p>
           <p className="hist-meta">
-            {j.wage} บาท · {statusLabel(j.status)} · {j.group?.group_name || "-"}
+            {j.wage} บาท · {j.payment_method} · {statusLabel(j.status)} ·{" "}
+            {j.group?.group_name || "-"}
           </p>
           <p className="hist-date">{formatThaiDateTimeClient(j.created_at)}</p>
           {j.status === "done" && (
@@ -565,7 +566,8 @@ function History({ lineUserId, goTo }) {
           <div key={c.id} className="hist-row">
             <p className="hist-detail">{c.job?.detail || "-"}</p>
             <p className="hist-meta">
-              {c.job?.wage} บาท · จาก {c.job?.poster?.display_name || "-"}
+              {c.job?.wage} บาท · {c.job?.payment_method} · จาก{" "}
+              {c.job?.poster?.display_name || "-"}
               {c.released_at ? " · คืนงานแล้ว" : ""}
               {c.job?.status === "done" ? " · จบงานแล้ว" : ""}
             </p>
