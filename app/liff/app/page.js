@@ -116,7 +116,7 @@ function tabTitle(tab) {
       claim: "รับงาน",
       complete: "จบงาน",
       return: "คืนงาน",
-      "job-detail": "รายละเอียดปิดงาน",
+      "job-detail": "รายละเอียดงาน",
       history: "ประวัติงาน",
       income: "สรุปรายได้",
       profile: "ข้อมูลส่วนตัว",
@@ -170,6 +170,18 @@ function formatThaiDateTimeClient(dateInput) {
     timeZone: "Asia/Bangkok",
   });
   return `${dateStr} ${timeStr} น.`;
+}
+
+function formatDurationClient(ms) {
+  const totalMinutes = Math.round(ms / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+  if (days > 0) parts.push(`${days} วัน`);
+  if (hours > 0) parts.push(`${hours} ชั่วโมง`);
+  if (minutes > 0 || parts.length === 0) parts.push(`${minutes} นาที`);
+  return parts.join(" ");
 }
 
 function Home({ setTab, lineUserId }) {
@@ -573,18 +585,17 @@ function History({ lineUserId, goTo }) {
         <>
           {postedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
           {postedFiltered.map((j) => (
-            <div key={j.id} className="hist-row">
+            <div
+              key={j.id}
+              className="hist-row hist-row-clickable"
+              onClick={() => goTo("job-detail", j.id)}
+            >
               <p className="hist-detail">{j.detail}</p>
               <p className="hist-meta">
                 {j.wage} บาท · {j.payment_method} · {statusLabel(j.status)} ·{" "}
                 {j.group?.group_name || "-"}
               </p>
               <p className="hist-date">{formatThaiDateTimeClient(j.created_at)}</p>
-              {j.status === "done" && (
-                <button className="hist-btn" onClick={() => goTo("job-detail", j.id)}>
-                  📋 ดูรายละเอียดการปิดงาน
-                </button>
-              )}
             </div>
           ))}
         </>
@@ -596,7 +607,11 @@ function History({ lineUserId, goTo }) {
           {claimedFiltered.map((c) => {
             const isActive = !c.released_at && c.job?.status === "claimed";
             return (
-              <div key={c.id} className="hist-row">
+              <div
+                key={c.id}
+                className="hist-row hist-row-clickable"
+                onClick={() => goTo("job-detail", c.job.id)}
+              >
                 <p className="hist-detail">{c.job?.detail || "-"}</p>
                 <p className="hist-meta">
                   {c.job?.wage} บาท · {c.job?.payment_method} · จาก{" "}
@@ -606,10 +621,22 @@ function History({ lineUserId, goTo }) {
                 <p className="hist-date">{formatThaiDateTimeClient(c.claimed_at)}</p>
                 {isActive && (
                   <div className="hist-actions">
-                    <button className="hist-btn primary" onClick={() => goTo("complete", c.job.id)}>
+                    <button
+                      className="hist-btn primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        goTo("complete", c.job.id);
+                      }}
+                    >
                       ✅ จบงาน
                     </button>
-                    <button className="hist-btn" onClick={() => goTo("return", c.job.id)}>
+                    <button
+                      className="hist-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        goTo("return", c.job.id);
+                      }}
+                    >
                       ↩️ คืนงาน
                     </button>
                   </div>
@@ -624,7 +651,11 @@ function History({ lineUserId, goTo }) {
         <>
           {returnedFiltered.length === 0 && <p className="empty small">ยังไม่มี</p>}
           {returnedFiltered.map((c) => (
-            <div key={c.id} className="hist-row">
+            <div
+              key={c.id}
+              className="hist-row hist-row-clickable"
+              onClick={() => goTo("job-detail", c.job.id)}
+            >
               <p className="hist-detail">{c.job?.detail || "-"}</p>
               <p className="hist-meta">
                 {c.job?.wage} บาท · {c.job?.payment_method} · จาก{" "}
@@ -1167,7 +1198,8 @@ function JobDetail({ jobId }) {
   if (!data) return <Loading />;
   if (data.error) return <div className="section center-pad"><p className="empty">ไม่พบข้อมูล</p></div>;
 
-  const claim = data.claim;
+  const { returns, currentClaim, doneClaim } = data;
+
   return (
     <div className="section">
       <div className="profile-summary">
@@ -1177,38 +1209,92 @@ function JobDetail({ jobId }) {
           <strong>{data.wage} บาท</strong>
         </div>
         <div className="summary-row">
-          <span>ผู้รับงาน</span>
-          <strong>{claim?.claimer?.display_name ?? "-"}</strong>
+          <span>วิธีจ่ายเงิน</span>
+          <strong>{data.paymentMethod}</strong>
         </div>
-        {claim?.claimer?.phone && (
+        <div className="summary-row">
+          <span>กลุ่ม</span>
+          <strong>{data.groupName ?? "-"}</strong>
+        </div>
+        <div className="summary-row">
+          <span>สถานะ</span>
+          <strong>{statusLabel(data.status)}</strong>
+        </div>
+        {data.totalServiceMs > 0 && (
           <div className="summary-row">
-            <span>เบอร์ติดต่อ</span>
-            <a className="phone-link" href={`tel:${claim.claimer.phone}`}>
-              📞 {claim.claimer.phone}
-            </a>
-          </div>
-        )}
-        {claim?.claimed_at && (
-          <div className="summary-row">
-            <span>รับงานเมื่อ</span>
-            <strong>{formatThaiDateTimeClient(claim.claimed_at)}</strong>
-          </div>
-        )}
-        {claim?.delivery_at && (
-          <div className="summary-row">
-            <span>ปิดงานเมื่อ</span>
-            <strong>{formatThaiDateTimeClient(claim.delivery_at)}</strong>
-          </div>
-        )}
-        {claim?.delivery_note && (
-          <div className="summary-row">
-            <span>หมายเหตุ</span>
-            <strong>{claim.delivery_note}</strong>
+            <span>รวมเวลาดูแลลูกค้า</span>
+            <strong>{formatDurationClient(data.totalServiceMs)}</strong>
           </div>
         )}
       </div>
-      {claim?.delivery_photo_url && (
-        <img src={claim.delivery_photo_url} alt="delivery" className="photo-preview" />
+
+      {returns.length > 0 && (
+        <div className="profile-summary">
+          <p className="summary-head">ประวัติการคืนงาน ({returns.length})</p>
+          {returns.map((r, i) => (
+            <div key={i} className="summary-row">
+              <span>ครั้งที่ {i + 1} · {r.claimerName}</span>
+              <strong>{formatThaiDateTimeClient(r.releasedAt)}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {currentClaim && (
+        <div className="profile-summary">
+          <p className="summary-head">งานอยู่ที่</p>
+          <div className="summary-row">
+            <span>ผู้รับงาน</span>
+            <strong>{currentClaim.claimer?.display_name ?? "-"}</strong>
+          </div>
+          {currentClaim.claimer?.phone && (
+            <div className="summary-row">
+              <span>เบอร์ติดต่อ</span>
+              <a className="phone-link" href={`tel:${currentClaim.claimer.phone}`}>
+                📞 {currentClaim.claimer.phone}
+              </a>
+            </div>
+          )}
+          <div className="summary-row">
+            <span>รับงานเมื่อ</span>
+            <strong>{formatThaiDateTimeClient(currentClaim.claimed_at)}</strong>
+          </div>
+        </div>
+      )}
+
+      {doneClaim && (
+        <div className="profile-summary">
+          <p className="summary-head">รายละเอียดการปิดงาน</p>
+          <div className="summary-row">
+            <span>ผู้รับงาน</span>
+            <strong>{doneClaim.claimer?.display_name ?? "-"}</strong>
+          </div>
+          {doneClaim.claimer?.phone && (
+            <div className="summary-row">
+              <span>เบอร์ติดต่อ</span>
+              <a className="phone-link" href={`tel:${doneClaim.claimer.phone}`}>
+                📞 {doneClaim.claimer.phone}
+              </a>
+            </div>
+          )}
+          <div className="summary-row">
+            <span>รับงานเมื่อ</span>
+            <strong>{formatThaiDateTimeClient(doneClaim.claimed_at)}</strong>
+          </div>
+          <div className="summary-row">
+            <span>ปิดงานเมื่อ</span>
+            <strong>{formatThaiDateTimeClient(doneClaim.delivery_at)}</strong>
+          </div>
+          {doneClaim.delivery_note && (
+            <div className="summary-row">
+              <span>หมายเหตุ</span>
+              <strong>{doneClaim.delivery_note}</strong>
+            </div>
+          )}
+        </div>
+      )}
+      {doneClaim?.delivery_photo_url && (
+        <img src={doneClaim.delivery_photo_url} alt="delivery" className="photo-preview" />
       )}
     </div>
   );
@@ -1303,6 +1389,8 @@ const styles = `
   .summary-row strong { color: #222; font-weight: 600; text-align: right; }
   .phone-link { color: ${ACCENT}; font-weight: 700; text-decoration: none; }
   .hist-row { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .hist-row-clickable { cursor: pointer; }
+  .hist-row-clickable:active { background: #F4F4F4; }
   .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; }
   .hist-meta { font-size: 13px; color: #777; margin: 0; }
   .hist-date { font-size: 12px; color: #aaa; margin: 4px 0 0; }
