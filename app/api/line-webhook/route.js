@@ -19,6 +19,7 @@ import {
   buildGroupClaimedMessage,
   buildClaimedActionsCard,
   buildLinkButtonMessage,
+  buildPhoneButtonMessage,
   saveJobQuoteToken,
 } from "@/lib/jobs";
 
@@ -79,8 +80,7 @@ async function canDoJobAction(user) {
 }
 
 function personLine(user) {
-  const name = displayNameOf(user);
-  return user.phone ? `${name}\nโทร ${user.phone}` : name;
+  return displayNameOf(user);
 }
 
 // ส่ง DM หา user ถ้าส่งไม่ได้ (ยังไม่แอดเพื่อน) ให้ประกาศ fallback เข้ากลุ่มแทน
@@ -269,54 +269,55 @@ async function handlePostback(event) {
 
   const claimerBalance = await getUserBalance(claimer.id);
   const chatLink = chatUrl(job.id);
+
+  const claimerMessages = [
+    {
+      type: "text",
+      text:
+        `✅ คุณได้รับงานนี้แล้ว!\n` +
+        `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
+        `ผู้จ้างงาน: ${personLine(poster)}\n${formatThaiDateTime(claim.claimed_at)}` +
+        creditSuffix(claimerBalance) +
+        profileReminder(claimer),
+    },
+  ];
+  if (poster?.phone) {
+    claimerMessages.push(buildPhoneButtonMessage(personLine(poster), poster.phone));
+  }
+  claimerMessages.push(buildClaimedActionsCard(job));
+
   await notifyUser({
     user: claimer,
     lineGroupId: event.source.groupId,
-    messages: [
-      {
-        type: "text",
-        text:
-          `✅ คุณได้รับงานนี้แล้ว!\n` +
-          `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
-          `ผู้จ้างงาน: ${personLine(poster)}\n${formatThaiDateTime(claim.claimed_at)}` +
-          creditSuffix(claimerBalance) +
-          profileReminder(claimer),
-      },
-      buildClaimedActionsCard(job),
-    ],
+    messages: claimerMessages,
     fallbackText: `คุณได้รับงาน "${job.detail}" แล้วครับ (ส่งข้อมูลติดต่อไม่ได้เพราะยังไม่ได้เพิ่มเพื่อนบอท)${profileReminder(
       claimer
     )}`,
   });
 
   const posterBalance = await getUserBalance(poster.id);
+  const posterMessages = [
+    {
+      type: "text",
+      text:
+        `🎉 มีคนรับงานแล้ว!\n` +
+        `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
+        `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
+        creditSuffix(posterBalance) +
+        profileReminder(poster),
+    },
+  ];
+  if (claimer?.phone) {
+    posterMessages.push(buildPhoneButtonMessage(personLine(claimer), claimer.phone));
+  }
+  if (chatLink) {
+    posterMessages.push(buildLinkButtonMessage("เปิดแชทคุยกับผู้รับงาน", "💬 เปิดแชท", chatLink));
+  }
+
   await notifyUser({
     user: poster,
     lineGroupId: job.group?.line_group_id,
-    messages: chatLink
-      ? [
-          {
-            type: "text",
-            text:
-              `🎉 มีคนรับงานแล้ว!\n` +
-              `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
-              `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
-              creditSuffix(posterBalance) +
-              profileReminder(poster),
-          },
-          buildLinkButtonMessage("เปิดแชทคุยกับผู้รับงาน", "💬 เปิดแชท", chatLink),
-        ]
-      : [
-          {
-            type: "text",
-            text:
-              `🎉 มีคนรับงานแล้ว!\n` +
-              `งาน: ${job.detail}\n${formatThaiDateTime(job.created_at)}\n\n` +
-              `ผู้รับงาน: ${personLine(claimer)}\n${formatThaiDateTime(claim.claimed_at)}` +
-              creditSuffix(posterBalance) +
-              profileReminder(poster),
-          },
-        ],
+    messages: posterMessages,
     fallbackText: `งาน "${job.detail}" มีคนรับแล้วครับ (ส่งข้อมูลติดต่อไม่ได้เพราะยังไม่ได้เพิ่มเพื่อนบอท)${profileReminder(
       poster
     )}`,

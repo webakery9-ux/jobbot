@@ -997,7 +997,9 @@ function JobDetail({ jobId }) {
         {claim?.claimer?.phone && (
           <div className="summary-row">
             <span>เบอร์ติดต่อ</span>
-            <strong>{claim.claimer.phone}</strong>
+            <a className="phone-link" href={`tel:${claim.claimer.phone}`}>
+              📞 {claim.claimer.phone}
+            </a>
           </div>
         )}
         {claim?.delivery_note && (
@@ -1101,6 +1103,7 @@ const styles = `
   .summary-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; }
   .summary-row span { color: #888; flex-shrink: 0; }
   .summary-row strong { color: #222; font-weight: 600; text-align: right; }
+  .phone-link { color: ${ACCENT}; font-weight: 700; text-decoration: none; }
   .hist-row { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; }
   .hist-meta { font-size: 13px; color: #777; margin: 0; }
