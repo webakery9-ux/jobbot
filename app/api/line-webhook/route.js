@@ -38,11 +38,6 @@ function profileFormUrl() {
   return liffId ? `https://liff.line.me/${liffId}` : null;
 }
 
-function addFriendUrl() {
-  const basicId = process.env.LINE_BASIC_ID;
-  return basicId ? `https://line.me/R/ti/p/%40${basicId.replace(/^@/, "")}` : null;
-}
-
 function profileReminder(user) {
   if (user.profile_completed) return "";
   const url = profileFormUrl();
@@ -176,9 +171,7 @@ async function handleJoin(event) {
   if (event.source.type !== "group") return;
   await getOrCreateGroup(event.source.groupId); // ลงทะเบียนกลุ่ม+ดึงชื่อกลุ่มทันทีตั้งแต่บอทถูกเชิญเข้า
   const guideUrl = process.env.APP_URL ? `${process.env.APP_URL}/guide` : null;
-  await replyMessage(event.replyToken, [
-    buildWelcomeMessage({ guideUrl, addFriendUrl: addFriendUrl(), profileUrl: profileFormUrl() }),
-  ]);
+  await replyMessage(event.replyToken, [buildWelcomeMessage(guideUrl)]);
 }
 
 // มีคนเพิ่มเพื่อนบอทเป็นการส่วนตัว พาไปกรอกข้อมูลส่วนตัวทันที

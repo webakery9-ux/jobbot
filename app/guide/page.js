@@ -24,12 +24,22 @@ function Step({ n, children }) {
 }
 
 export default function GuidePage() {
+  const basicId = process.env.LINE_BASIC_ID;
+  const addFriendUrl = basicId
+    ? `https://line.me/R/ti/p/%40${basicId.replace(/^@/, "")}`
+    : null;
+
   return (
     <div className="wrap">
       <header className="hero">
         <p className="eyebrow">คู่มือการใช้งาน</p>
         <h1>JobBotTH</h1>
         <p className="tagline">จ่ายงาน-รับงานในกลุ่มไลน์ ง่าย ไว โปร่งใส ไม่ต้องโทรอีกต่อไป</p>
+        {addFriendUrl && (
+          <a className="add-friend-btn" href={addFriendUrl}>
+            ➕ เพิ่มเพื่อน JobBotTH
+          </a>
+        )}
       </header>
 
       <nav className="quicknav">
