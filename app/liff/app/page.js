@@ -94,7 +94,7 @@ export default function DashboardApp() {
         <Claim lineUserId={lineUserId} displayName={displayName} jobId={jobParam} />
       )}
       {tab === "complete" && <CompleteJob lineUserId={lineUserId} jobId={jobParam} />}
-      {tab === "return" && <ReturnJob lineUserId={lineUserId} jobId={jobParam} />}
+      {tab === "return" && <ReturnJob lineUserId={lineUserId} jobId={jobParam} goBack={goBack} />}
       {tab === "job-detail" && <JobDetail jobId={jobParam} lineUserId={lineUserId} />}
       {tab === "history" && (
         <History
@@ -1134,7 +1134,7 @@ function CompleteJob({ lineUserId, jobId }) {
   );
 }
 
-function ReturnJob({ lineUserId, jobId }) {
+function ReturnJob({ lineUserId, jobId, goBack }) {
   const [phase, setPhase] = useState("confirm");
   const [error, setError] = useState("");
 
@@ -1171,7 +1171,7 @@ function ReturnJob({ lineUserId, jobId }) {
         <button className="danger-btn" onClick={submit}>
           ยืนยันคืนงาน
         </button>
-        <button className="ghost-btn" onClick={close}>
+        <button className="ghost-btn" onClick={goBack}>
           ยกเลิก
         </button>
       </div>
