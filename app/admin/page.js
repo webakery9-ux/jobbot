@@ -303,6 +303,25 @@ function GroupRow({ group, onUpdated }) {
     }
   }
 
+  async function refreshName() {
+    setSaving(true);
+    setStatus("");
+    const res = await fetch("/api/admin/groups/refresh-name", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupId: group.id }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      const data = await res.json();
+      onUpdated(data.group);
+      setStatus("รีเฟรชชื่อแล้ว");
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setStatus(`ผิดพลาด: ${data.error || "unknown"}`);
+    }
+  }
+
   return (
     <div className="group-row">
       <p className="group-name">
@@ -331,6 +350,9 @@ function GroupRow({ group, onUpdated }) {
         )}
         <button className="btn" onClick={save} disabled={saving}>
           บันทึก
+        </button>
+        <button className="btn secondary" onClick={refreshName} disabled={saving}>
+          รีเฟรชชื่อกลุ่ม
         </button>
         {status && <span className="status-ok">{status}</span>}
       </div>
