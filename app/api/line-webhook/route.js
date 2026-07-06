@@ -190,6 +190,7 @@ async function handleTextMessage(event) {
 
 async function handleJoin(event) {
   if (event.source.type !== "group") return;
+  await getOrCreateGroup(event.source.groupId); // ลงทะเบียนกลุ่ม+ดึงชื่อกลุ่มทันทีตั้งแต่บอทถูกเชิญเข้า
   await replyMessage(event.replyToken, [{ type: "text", text: WELCOME_MESSAGE }]);
 }
 
