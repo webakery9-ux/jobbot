@@ -56,5 +56,9 @@ export async function POST(request) {
   }
 
   const updated = await getUserByLineId(lineUserId);
-  return NextResponse.json({ jobId: job.id, balance: Number(updated.wallet_balance) });
+  return NextResponse.json({
+    jobId: job.id,
+    balance: Number(updated.wallet_balance),
+    platformFee: Number(job.platform_fee),
+  });
 }

@@ -38,5 +38,9 @@ export async function POST(request) {
   await sendMatchNotifications({ job, claimer: user, claim });
 
   const updated = await getUserByLineId(lineUserId);
-  return NextResponse.json({ ok: true, balance: Number(updated.wallet_balance) });
+  return NextResponse.json({
+    ok: true,
+    balance: Number(updated.wallet_balance),
+    platformFee: Number(claim.platform_fee),
+  });
 }

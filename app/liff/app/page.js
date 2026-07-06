@@ -273,7 +273,10 @@ function PostJob({ lineUserId }) {
     setSubmitting(false);
     if (res.ok) {
       const d = await res.json();
-      setStatus({ ok: true, text: `โพสต์งานสำเร็จ! เครดิตคงเหลือ ${d.balance}` });
+      setStatus({
+        ok: true,
+        text: d.platformFee > 0 ? `โพสต์งานสำเร็จ! เครดิตคงเหลือ ${d.balance}` : "โพสต์งานสำเร็จ!",
+      });
       setForm((f) => ({ ...f, detail: "", wage: "", isUrgent: false, vehicleType: "" }));
     } else if (res.status === 402) {
       setStatus({ ok: false, text: "เครดิตไม่พอสำหรับเปิดงานนี้" });
@@ -884,7 +887,10 @@ function Claim({ lineUserId, displayName, jobId }) {
       const d = await res.json();
       setResult({
         type: "success",
-        text: `รับงานสำเร็จ! ระบบส่งข้อมูลติดต่อให้ในแชท JobBotTH แล้ว\nเครดิตคงเหลือ ${d.balance}`,
+        text:
+          d.platformFee > 0
+            ? `รับงานสำเร็จ! ระบบส่งข้อมูลติดต่อให้ในแชท JobBotTH แล้ว\nเครดิตคงเหลือ ${d.balance}`
+            : "รับงานสำเร็จ! ระบบส่งข้อมูลติดต่อให้ในแชท JobBotTH แล้ว",
       });
       setPhase("done");
     } else if (res.status === 403) {
