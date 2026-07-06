@@ -108,7 +108,7 @@ export default function DashboardApp() {
       {tab === "profile" && (
         <Profile lineUserId={lineUserId} displayName={displayName} setTab={navigate} />
       )}
-      {tab === "credit" && <ComingSoon title="เติมเครดิต" />}
+      {tab === "credit" && <TopupCredit lineUserId={lineUserId} />}
 
       <style jsx>{styles}</style>
     </div>
@@ -1313,6 +1313,136 @@ function JobDetail({ jobId, lineUserId }) {
   );
 }
 
+const CREDIT_PACKAGES = [
+  { thb: 20, credits: 20 },
+  { thb: 50, credits: 52 },
+  { thb: 100, credits: 105 },
+  { thb: 200, credits: 215 },
+  { thb: 300, credits: 325 },
+  { thb: 500, credits: 550 },
+];
+
+function TopupCredit({ lineUserId }) {
+  const { data, loading } = useDashboard(lineUserId, "credit");
+  const [selected, setSelected] = useState(null);
+  const [slip, setSlip] = useState(null);
+  const [phase, setPhase] = useState("form");
+  const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
+  const promptpayId = process.env.NEXT_PUBLIC_PROMPTPAY_ID;
+
+  if (loading) return <Loading />;
+
+  async function handleSlip(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file);
+      setSlip(dataUrl);
+    } catch (err) {
+      setError("อ่านรูปสลิปไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  function removeSlip() {
+    setSlip(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function submit() {
+    setPhase("submitting");
+    setError("");
+    const res = await fetch("/api/dashboard/topup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineUserId, packageThb: selected.thb, slipBase64: slip }),
+    });
+    if (res.ok) {
+      setPhase("done");
+    } else {
+      setError("ส่งคำขอไม่สำเร็จ ลองใหม่อีกครั้ง");
+      setPhase("form");
+    }
+  }
+
+  if (phase === "done") {
+    return (
+      <div className="section center-pad">
+        <div className="icon-big ok">✓</div>
+        <p className="result-text">
+          ได้รับคำขอเติมเครดิตแล้ว รอตรวจสอบสลิป เครดิตจะเข้ากระเป๋าเร็วๆ นี้ครับ
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="section">
+      <div className="total-card static">
+        <span>เครดิตคงเหลือ</span>
+        <strong>{Number(data?.balance ?? 0).toLocaleString()} เครดิต</strong>
+      </div>
+
+      <p className="subhead">เลือกแพ็กเกจ</p>
+      <div className="pkg-grid">
+        {CREDIT_PACKAGES.map((p) => (
+          <button
+            key={p.thb}
+            className={`pkg-card ${selected?.thb === p.thb ? "selected" : ""}`}
+            onClick={() => setSelected(p)}
+          >
+            <span className="pkg-thb">{p.thb} บาท</span>
+            <span className="pkg-credits">{p.credits} เครดิต</span>
+          </button>
+        ))}
+      </div>
+
+      {selected && (
+        <>
+          <p className="subhead">โอนเงินแล้วแนบสลิป</p>
+          {promptpayId ? (
+            <p className="p">โอนผ่านพร้อมเพย์: {promptpayId}</p>
+          ) : (
+            <p className="p muted">(ยังไม่ได้ตั้งค่าเลขพร้อมเพย์ ติดต่อแอดมินเพื่อขอเลขบัญชีก่อนโอน)</p>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleSlip}
+            style={{ display: "none" }}
+            id="slip-input"
+          />
+          {slip ? (
+            <div className="photo-preview-wrap">
+              <img src={slip} alt="slip" className="photo-preview" />
+              <button className="photo-remove" onClick={removeSlip}>
+                ลบรูป
+              </button>
+            </div>
+          ) : (
+            <label htmlFor="slip-input" className="photo-upload">
+              <span className="photo-upload-icon">📎</span>
+              แนบรูปสลิปโอนเงิน
+            </label>
+          )}
+
+          {error && <p className="status err">{error}</p>}
+
+          <button
+            className="claim-btn"
+            disabled={!slip || phase === "submitting"}
+            onClick={submit}
+          >
+            {phase === "submitting" ? "กำลังส่ง..." : "ยืนยันแจ้งโอนเงิน"}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ComingSoon({ title }) {
   return (
     <div className="section center-pad">
@@ -1421,7 +1551,13 @@ const styles = `
   .metric-unit { font-size: 12px; color: #aaa; }
   .total-card { background: #fff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); font-size: 15px; color: #555; border: 2px solid transparent; text-align: left; width: 100%; cursor: pointer; }
   .total-card.active { border-color: ${ACCENT}; }
+  .total-card.static { cursor: default; }
   .total-card strong { font-size: 20px; color: #222; }
+  .pkg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .pkg-card { background: #fff; border: 2px solid #E5E5E5; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .pkg-card.selected { border-color: ${ACCENT}; background: #F0FBF5; }
+  .pkg-thb { font-size: 14px; color: #666; }
+  .pkg-credits { font-size: 18px; font-weight: 700; color: #222; }
   .empty { text-align: center; color: #999; font-size: 15px; padding: 12px; }
   .empty.small { padding: 4px; font-size: 14px; }
   .link-btn { background: ${ACCENT}; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; border: none; font-size: 15px; }
