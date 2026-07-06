@@ -1472,7 +1472,7 @@ function NeedProfile({ setTab }) {
 
 function statusLabel(s) {
   return (
-    { open: "เปิดอยู่", claimed: "มีคนรับแล้ว", done: "เสร็จแล้ว", expired: "หมดอายุ" }[
+    { open: "เปิดอยู่", claimed: "มีคนรับแล้ว", done: "เสร็จแล้ว", expired: "หมดอายุ", removed: "ถูกลบโดยผู้ดูแลระบบ" }[
       s
     ] ?? s
   );

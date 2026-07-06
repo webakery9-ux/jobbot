@@ -83,11 +83,19 @@ function Dashboard({ onLogout }) {
         <button className={tab === "groups" ? "active" : ""} onClick={() => setTab("groups")}>
           จัดการกลุ่ม
         </button>
+        <button className={tab === "jobs" ? "active" : ""} onClick={() => setTab("jobs")}>
+          จัดการงาน
+        </button>
+        <button className={tab === "settings" ? "active" : ""} onClick={() => setTab("settings")}>
+          ตั้งค่า
+        </button>
       </div>
 
       {tab === "usage" && <UsageTab />}
       {tab === "credits" && <CreditsTab />}
       {tab === "groups" && <GroupsTab />}
+      {tab === "jobs" && <JobsTab />}
+      {tab === "settings" && <SettingsTab />}
     </div>
   );
 }
@@ -326,6 +334,137 @@ function GroupRow({ group, onUpdated }) {
         </button>
         {status && <span className="status-ok">{status}</span>}
       </div>
+    </div>
+  );
+}
+
+function statusLabelAdmin(s) {
+  return (
+    { open: "เปิดอยู่", claimed: "มีคนรับแล้ว", done: "เสร็จแล้ว", expired: "หมดอายุ", removed: "ถูกลบแล้ว" }[s] ?? s
+  );
+}
+
+function JobsTab() {
+  const [q, setQ] = useState("");
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  async function load(e) {
+    e?.preventDefault();
+    setLoading(true);
+    const res = await fetch(`/api/admin/jobs?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    setJobs(data.jobs ?? []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    load();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function remove(jobId) {
+    if (!confirm("ยืนยันลบงานนี้? ถ้าเคยหักเครดิตไว้จะคืนให้ผู้เปิดงานอัตโนมัติ")) return;
+    const res = await fetch("/api/admin/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status: data.job.status } : j)));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(`ลบไม่สำเร็จ: ${data.error || "unknown"}`);
+    }
+  }
+
+  return (
+    <div className="card">
+      <form className="search-row" onSubmit={load}>
+        <input
+          placeholder="ค้นหาข้อความในรายละเอียดงาน"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <button className="btn" type="submit" disabled={loading}>
+          ค้นหา
+        </button>
+      </form>
+      {loading && <p className="user-meta">กำลังโหลด...</p>}
+      {!loading && jobs.length === 0 && <p className="user-meta">ไม่มีผลลัพธ์</p>}
+      {jobs.map((j) => (
+        <div className="user-row" key={j.id}>
+          <p className="user-name">{j.detail}</p>
+          <p className="user-meta">
+            {j.wage} บาท · {j.payment_method} · {statusLabelAdmin(j.status)} · กลุ่ม:{" "}
+            {j.group?.group_name || "-"} · ผู้เปิดงาน: {j.poster?.display_name || "-"}
+          </p>
+          {j.status === "open" && (
+            <button className="btn danger" onClick={() => remove(j.id)}>
+              ลบงานนี้
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SettingsTab() {
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((r) => r.json())
+      .then(setForm);
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setStatus("");
+    const res = await fetch("/api/admin/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    setSaving(false);
+    setStatus(res.ok ? "บันทึกแล้ว" : "บันทึกไม่สำเร็จ");
+  }
+
+  if (!form) return <p>กำลังโหลด...</p>;
+
+  return (
+    <div className="card">
+      <div className="field-block">
+        <label className="field-label">เครดิตฟรีเริ่มต้น (สมาชิกใหม่ทั่วไป)</label>
+        <input
+          type="number"
+          value={form.signupFreeCredit}
+          onChange={(e) => setForm({ ...form, signupFreeCredit: e.target.value })}
+        />
+      </div>
+      <div className="field-block">
+        <label className="field-label">เครดิตฟรีเริ่มต้น (VIP)</label>
+        <input
+          type="number"
+          value={form.vipSignupCredit}
+          onChange={(e) => setForm({ ...form, vipSignupCredit: e.target.value })}
+        />
+      </div>
+      <div className="field-block">
+        <label className="field-label">รายชื่อ VIP (คั่นด้วยจุลภาค ,)</label>
+        <textarea
+          rows={3}
+          value={form.vipNames}
+          onChange={(e) => setForm({ ...form, vipNames: e.target.value })}
+        />
+      </div>
+      <button className="btn" onClick={save} disabled={saving}>
+        {saving ? "กำลังบันทึก..." : "บันทึกการตั้งค่า"}
+      </button>
+      {status && <span className="status-ok" style={{ marginLeft: 10 }}>{status}</span>}
     </div>
   );
 }
