@@ -18,6 +18,7 @@ import {
   buildGroupClaimedMessage,
   buildClaimedCard,
   saveJobQuoteToken,
+  buildWelcomeMessage,
 } from "@/lib/jobs";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
@@ -67,28 +68,6 @@ async function notifyUser({ user, lineGroupId, messages, fallbackText }) {
     await pushMessage(lineGroupId, [{ type: "text", text: fallbackText }]);
   }
 }
-
-const WELCOME_MESSAGE =
-  "สวัสดีครับพี่ๆ สมาชิกในกลุ่มทุกท่าน!\n" +
-  "ขออนุญาตแนะนำบอทผู้ช่วยจัดระเบียบการจ่ายงานและรับงานอัตโนมัติในกลุ่มนะครับ:\n\n" +
-  "🔹 ผู้จ้างงาน: โพสต์งานง่าย เป็นระบบ\n" +
-  "🔹 ผู้รับงาน: สามารถกดรับงานได้ทันที โปร่งใสที่สุด ใครเห็นก่อนกดรับได้ก่อน ไม่มีซ้ำ\n" +
-  "🔹 ลดความสับสน: กดรับงานสำเร็จ ส่งข้อมูลติดต่อในแชทส่วนตัวทันที ไม่รบกวนกลุ่มหลัก\n\n" +
-  "🟢 ก่อนใช้งาน กรุณาเพิ่มเพื่อน JobBotTH และกรอกข้อมูลสำคัญก่อนนะครับ\n" +
-  "(จำเป็นสำหรับการรับงาน จ่ายงานและแจ้งเตือนส่วนตัว)\n\n" +
-  "📥 คนจ่ายงานพิมพ์ เพื่อทดลองเปิดงานได้ครับ \n" +
-  "เช่น\n" +
-  "/job แอร์สุ-สุขุมวิท 400 โอนทันที\n" +
-  "/job ด่วน แอร์สุ-สุขุมวิท 400 จบโอน\n" +
-  "/job ด่วน SUV แอร์สุ-สุขุมวิท 400 เก็บลูกค้า\n" +
-  "/งาน นานา-พัทยา 1000 โอน24\n" +
-  "/งาน ด่วน นานา-พัทยา 1000 ปลายทาง\n" +
-  "/งาน ด่วน รถตู้ นานา-พัทยา 1000 เก็บลูกค้า\n\n" +
-  "หรือ เปิดหน้าจัดการในแชทส่วนตัว JobBotTH ปุ่มโพสต์งาน เลือกกลุ่มที่จะส่งงาน หากอยู่หลายกลุ่มที่มีฐานข้อมูล JobBotTH\n\n" +
-  "📌 คนรับงาน ไม่ต้องพิมพ์อะไรเลยครับ แค่กดปุ่ม \"กดรับงาน\" บนการ์ดงานในกลุ่มได้ทันที ใครกดก่อนได้งานก่อน งานจะไปเด้งในแชทส่วนตัว หรือเข้าไปรับงานในหน้า รับงาน ในแชทส่วนตัวก็ได้\n\n" +
-  "ทุกท่านสามารถดูรายละเอียดประวัติการรับงาน จ่ายงานได้ทั้งหมด ว่าเคยจ่ายงานให้ใคร รับงานจากใคร วันไหน จ่าย-รับ กี่งาน หรือดูสรุปรายได้จากการรับงานทั้งหมดได้ รายวัน รายสัปดาห์ รายเดือน รายปี\n\n" +
-  "ขอขอบพระคุณทุกท่าน หากการใช้งานทำให้สะดวกขึ้นได้ ระบบนี้เก็บแค่ค่าบำรุง Server ระบบ โดยคิดจากราคางาน 100/1 เครดิตเท่านั้น\n" +
-  "หากมีข้อสงสัย สามารถติดต่อผู้ดูแลระบบได้เลยครับ";
 
 async function handleDirectMessage(event) {
   const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
@@ -191,7 +170,8 @@ async function handleTextMessage(event) {
 async function handleJoin(event) {
   if (event.source.type !== "group") return;
   await getOrCreateGroup(event.source.groupId); // ลงทะเบียนกลุ่ม+ดึงชื่อกลุ่มทันทีตั้งแต่บอทถูกเชิญเข้า
-  await replyMessage(event.replyToken, [{ type: "text", text: WELCOME_MESSAGE }]);
+  const guideUrl = process.env.APP_URL ? `${process.env.APP_URL}/guide` : null;
+  await replyMessage(event.replyToken, [buildWelcomeMessage(guideUrl)]);
 }
 
 // มีคนเข้ากลุ่มใหม่ (ที่มีบอทอยู่แล้ว) ผูกกลุ่มให้ทันทีโดยไม่ต้องรอให้เขาพิมพ์อะไรก่อน
