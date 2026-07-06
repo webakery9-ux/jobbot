@@ -3,10 +3,26 @@ import { supabase } from "@/lib/supabase";
 
 export async function POST(request) {
   const body = await request.json();
-  const { lineUserId, displayName, firstName, lastName, phone, vehicleType, vehicleModel } =
-    body;
+  const {
+    lineUserId,
+    displayName,
+    firstName,
+    lastName,
+    phone,
+    vehicleType,
+    vehicleModel,
+    vehiclePlate,
+  } = body;
 
-  if (!lineUserId || !firstName || !lastName || !phone || !vehicleType) {
+  if (
+    !lineUserId ||
+    !firstName ||
+    !lastName ||
+    !phone ||
+    !vehicleType ||
+    !vehicleModel ||
+    !vehiclePlate
+  ) {
     return NextResponse.json({ error: "missing required fields" }, { status: 400 });
   }
 
@@ -19,7 +35,8 @@ export async function POST(request) {
     last_name: lastName,
     phone,
     vehicle_type: vehicleType,
-    vehicle_model: vehicleModel ?? null,
+    vehicle_model: vehicleModel,
+    vehicle_plate: vehiclePlate,
     profile_completed: true,
   };
 

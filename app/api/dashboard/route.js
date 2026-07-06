@@ -52,6 +52,7 @@ export async function GET(request) {
         phone: user.phone ?? "",
         vehicleType: user.vehicle_type ?? "Sedan",
         vehicleModel: user.vehicle_model ?? "",
+        vehiclePlate: user.vehicle_plate ?? "",
       },
     });
   }

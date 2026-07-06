@@ -17,6 +17,7 @@ export default function ProfilePage() {
     phone: "",
     vehicleType: "Sedan",
     vehicleModel: "",
+    vehiclePlate: "",
   });
 
   useEffect(() => {
@@ -136,15 +137,29 @@ export default function ProfilePage() {
             <option value="Sedan">Sedan</option>
             <option value="SUV">SUV</option>
             <option value="VAN">VAN</option>
+            <option value="EV-Sedan">EV-Sedan</option>
+            <option value="EV-SUV">EV-SUV</option>
+            <option value="EV-VAN">EV-VAN</option>
           </select>
         </label>
 
         <label className="field">
-          <span className="field-label">ยี่ห้อ/รุ่นรถ (ถ้ามี)</span>
+          <span className="field-label">ยี่ห้อ/รุ่นรถ</span>
           <input
+            required
             placeholder="เช่น Toyota Vios"
             value={form.vehicleModel}
             onChange={(e) => setForm({ ...form, vehicleModel: e.target.value })}
+          />
+        </label>
+
+        <label className="field">
+          <span className="field-label">ทะเบียนรถ</span>
+          <input
+            required
+            placeholder="เช่น กข 1234"
+            value={form.vehiclePlate}
+            onChange={(e) => setForm({ ...form, vehiclePlate: e.target.value })}
           />
         </label>
 
