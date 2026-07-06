@@ -137,7 +137,25 @@ export default function GuidePage() {
         </ul>
       </Section>
 
-      <footer className="footer">มีคำถามเพิ่มเติม ติดต่อผู้ดูแลระบบได้เลยครับ</footer>
+      {addFriendUrl && (
+        <a className="add-friend-btn bottom" href={addFriendUrl}>
+          ➕ เพิ่มเพื่อน JobBotTH
+        </a>
+      )}
+
+      <Section id="contact" title="☎️ ติดต่อผู้ดูแลระบบ">
+        <p className="p">มีคำถามเพิ่มเติมหรือแจ้งปัญหาการใช้งาน ติดต่อได้เลยครับ</p>
+        <div className="contact-buttons">
+          <a className="contact-btn" href="tel:0649636292">
+            📞 โทร 064-963-6292
+          </a>
+          <a className="contact-btn" href="https://line.me/ti/p/~jpuuh">
+            💬 แอดไลน์ผู้ดูแล
+          </a>
+        </div>
+      </Section>
+
+      <footer className="footer">JobBotTH</footer>
     </div>
   );
 }
