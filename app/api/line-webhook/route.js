@@ -38,6 +38,11 @@ function profileFormUrl() {
   return liffId ? `https://liff.line.me/${liffId}` : null;
 }
 
+function addFriendUrl() {
+  const basicId = process.env.LINE_BASIC_ID;
+  return basicId ? `https://line.me/R/ti/p/%40${basicId.replace(/^@/, "")}` : null;
+}
+
 function profileReminder(user) {
   if (user.profile_completed) return "";
   const url = profileFormUrl();
@@ -171,7 +176,67 @@ async function handleJoin(event) {
   if (event.source.type !== "group") return;
   await getOrCreateGroup(event.source.groupId); // ลงทะเบียนกลุ่ม+ดึงชื่อกลุ่มทันทีตั้งแต่บอทถูกเชิญเข้า
   const guideUrl = process.env.APP_URL ? `${process.env.APP_URL}/guide` : null;
-  await replyMessage(event.replyToken, [buildWelcomeMessage(guideUrl)]);
+  await replyMessage(event.replyToken, [
+    buildWelcomeMessage({ guideUrl, addFriendUrl: addFriendUrl(), profileUrl: profileFormUrl() }),
+  ]);
+}
+
+// มีคนเพิ่มเพื่อนบอทเป็นการส่วนตัว พาไปกรอกข้อมูลส่วนตัวทันที
+async function handleFollow(event) {
+  const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
+  const url = profileFormUrl();
+  const creditLine = isNew
+    ? `เราแจกเครดิตฟรีให้ ${freeCredit} เครดิตเพื่อลองใช้งาน (เครดิตคงเหลือ: ${user.wallet_balance})`
+    : `เครดิตคงเหลือของคุณ: ${user.wallet_balance}`;
+  await replyMessage(event.replyToken, [
+    {
+      type: "flex",
+      altText: "ยินดีต้อนรับ! กรอกข้อมูลส่วนตัวเพื่อเริ่มใช้งาน",
+      contents: {
+        type: "bubble",
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            { type: "text", text: "🎉 ยินดีต้อนรับสู่ JobBotTH", weight: "bold", size: "md", wrap: true },
+            {
+              type: "text",
+              text: creditLine,
+              wrap: true,
+              size: "sm",
+              color: "#555555",
+              margin: "md",
+            },
+            ...(user.profile_completed
+              ? []
+              : [
+                  {
+                    type: "text",
+                    text: "กรอกข้อมูลส่วนตัวก่อนเริ่มรับงาน/จ่ายงานได้เลยครับ ใช้เวลาไม่ถึงนาที",
+                    wrap: true,
+                    size: "sm",
+                    color: "#555555",
+                    margin: "md",
+                  },
+                ]),
+          ],
+        },
+        footer: url && !user.profile_completed
+          ? {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "button",
+                  style: "primary",
+                  action: { type: "uri", label: "📝 กรอกข้อมูลส่วนตัว", uri: url },
+                },
+              ],
+            }
+          : undefined,
+      },
+    },
+  ]);
 }
 
 // มีคนเข้ากลุ่มใหม่ (ที่มีบอทอยู่แล้ว) ผูกกลุ่มให้ทันทีโดยไม่ต้องรอให้เขาพิมพ์อะไรก่อน
@@ -275,6 +340,8 @@ export async function POST(request) {
       await handlePostback(event);
     } else if (event.type === "join") {
       await handleJoin(event);
+    } else if (event.type === "follow") {
+      await handleFollow(event);
     } else if (event.type === "memberJoined") {
       await handleMemberJoined(event);
     }
