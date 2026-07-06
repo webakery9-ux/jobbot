@@ -266,15 +266,16 @@ function GroupsTab() {
           key={g.id}
           group={g}
           onUpdated={(updated) =>
-            setGroups((prev) => prev.map((x) => (x.id === g.id ? updated : x)))
+            setGroups((prev) => prev.map((x) => (x.id === g.id ? { ...x, ...updated } : x)))
           }
+          onDeleted={(groupId) => setGroups((prev) => prev.filter((x) => x.id !== groupId))}
         />
       ))}
     </div>
   );
 }
 
-function GroupRow({ group, onUpdated }) {
+function GroupRow({ group, onUpdated, onDeleted }) {
   const [mode, setMode] = useState(group.billing_mode);
   const [validUntil, setValidUntil] = useState(group.subscription_valid_until ?? "");
   const [saving, setSaving] = useState(false);
@@ -322,12 +323,39 @@ function GroupRow({ group, onUpdated }) {
     }
   }
 
+  async function deleteGroup(force) {
+    setSaving(true);
+    setStatus("");
+    const res = await fetch("/api/admin/groups/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupId: group.id, force }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      onDeleted(group.id);
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 409 && data.error === "has_dependent_jobs") {
+      const confirmForce = confirm(
+        `กลุ่มนี้มีงานผูกอยู่ ${data.jobCount} งาน ถ้าลบต่อจะลบงานเหล่านี้ (และแชท/ธุรกรรมที่เกี่ยวข้อง) ทั้งหมดด้วย ยืนยันลบทั้งหมดหรือไม่?`
+      );
+      if (confirmForce) await deleteGroup(true);
+      return;
+    }
+    setStatus(`ผิดพลาด: ${data.error || "unknown"}`);
+  }
+
   return (
     <div className="group-row">
       <p className="group-name">
         {group.group_name || "(ยังไม่มีชื่อ)"}{" "}
         <span className={`badge ${group.billing_mode}`}>
           {group.billing_mode === "subscription" ? "เหมาจ่าย" : "เครดิต"}
+        </span>{" "}
+        <span className={`badge ${group.botInGroup ? "bot-in" : "bot-out"}`}>
+          {group.botInGroup ? "บอทอยู่ในกลุ่ม" : "บอทไม่ได้อยู่ในกลุ่มแล้ว"}
         </span>
       </p>
       <p className="group-meta">
@@ -353,6 +381,9 @@ function GroupRow({ group, onUpdated }) {
         </button>
         <button className="btn secondary" onClick={refreshName} disabled={saving}>
           รีเฟรชชื่อกลุ่ม
+        </button>
+        <button className="btn danger" onClick={() => deleteGroup(false)} disabled={saving}>
+          ลบกลุ่มนี้
         </button>
         {status && <span className="status-ok">{status}</span>}
       </div>

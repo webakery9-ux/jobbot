@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/adminAuth";
 import { supabase } from "@/lib/supabase";
+import { getGroupSummary } from "@/lib/line";
 
 export async function GET(request) {
   if (!isAdminRequest(request)) {
@@ -12,7 +13,16 @@ export async function GET(request) {
     .select("id, line_group_id, group_name, billing_mode, subscription_valid_until, created_at")
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return NextResponse.json({ groups: data ?? [] });
+
+  // เช็คสดว่าบอทยังอยู่ในแต่ละกลุ่มไหม (LINE จะดึง summary ไม่ได้ถ้าบอทถูกเชิญออกไปแล้ว)
+  const groups = await Promise.all(
+    (data ?? []).map(async (g) => ({
+      ...g,
+      botInGroup: (await getGroupSummary(g.line_group_id)) != null,
+    }))
+  );
+
+  return NextResponse.json({ groups });
 }
 
 export async function POST(request) {

@@ -37,6 +37,8 @@ h1 { font-size: 22px; margin: 0 0 20px; color: #06C755; }
 .badge { display: inline-block; font-size: 12px; padding: 2px 10px; border-radius: 12px; font-weight: 700; }
 .badge.credit { background: #E6F1FB; color: #185FA5; }
 .badge.subscription { background: #EAF3DE; color: #3B6D11; }
+.badge.bot-in { background: #EAF3DE; color: #3B6D11; }
+.badge.bot-out { background: #FCEBEB; color: #A32D2D; }
 .status-ok { color: #0F6E56; font-size: 13px; }
 .field-block { margin-bottom: 16px; }
 .field-label { display: block; font-size: 13px; color: #555; font-weight: 700; margin-bottom: 6px; }
