@@ -2,5 +2,10 @@
   command = "npm run build"
   publish = ".next"
 
+# ตัวแปรพวกนี้ตั้งใจให้ฝังลงในโค้ดฝั่ง browser อยู่แล้ว (Next.js เอง แปลว่า "public" ไม่ใช่ความลับ)
+# ไม่ต้องให้ Netlify's secrets scanner มาเตือน false positive
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_LIFF_ID,NEXT_PUBLIC_CHAT_LIFF_ID,NEXT_PUBLIC_MGMT_LIFF_ID"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
