@@ -39,24 +39,38 @@ export default function DashboardApp() {
     init();
   }, []);
 
+  // ย้อน tab กลับหนึ่งขั้นจาก stack (ใช้ทั้งตอนกดปุ่ม "กลับ" ในแอปเอง และตอนกดปุ่มกลับของเครื่อง)
+  const popTab = useCallback(() => {
+    setTabStack((s) => {
+      if (s.length === 0) {
+        setTab("home");
+        return s;
+      }
+      const copy = [...s];
+      const prevTab = copy.pop();
+      setTab(prevTab);
+      return copy;
+    });
+  }, []);
+
+  // เวลากดปุ่ม "กลับ" ในแอป เราย้อน tab เองทันที (ไม่ต้องรอ browser ยิง popstate ซึ่งบาง webview ในแอป LINE ไม่เสถียร)
+  // แต่ก็ยังเรียก history.back() ควบคู่ไปด้วยเพื่อให้ประวัติเบราว์เซอร์ตรงกับ tab จริง
+  // เลยต้องมี flag ไว้บอก popstate handler ว่ารอบนี้ไม่ต้องย้อนซ้ำอีกรอบ
+  const skipNextPopRef = useRef(false);
+
   // ปุ่มย้อนกลับของเครื่อง (ฮาร์ดแวร์/สไวป์) ต้องผูกกับ useEffect นี้เสมอไม่ว่าจะ render รอบไหน
   // (ต้องอยู่ก่อน early return ด้านล่าง ไม่งั้นจำนวน hook ที่เรียกแต่ละรอบไม่เท่ากัน ทำให้ React error)
   useEffect(() => {
     function onPopState() {
-      setTabStack((s) => {
-        if (s.length === 0) {
-          setTab("home");
-          return s;
-        }
-        const copy = [...s];
-        const prevTab = copy.pop();
-        setTab(prevTab);
-        return copy;
-      });
+      if (skipNextPopRef.current) {
+        skipNextPopRef.current = false;
+        return;
+      }
+      popTab();
     }
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+  }, [popTab]);
 
   if (error) {
     return (
@@ -86,6 +100,8 @@ export default function DashboardApp() {
   }
 
   function goBack() {
+    skipNextPopRef.current = true;
+    popTab();
     window.history.back();
   }
 
