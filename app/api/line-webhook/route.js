@@ -7,7 +7,13 @@ import {
   hasPriorJobActivity,
   shouldSendProfileReminder,
 } from "@/lib/users";
-import { getOrCreateGroup, linkUserToGroup, userHasCreditGroup } from "@/lib/groups";
+import {
+  getOrCreateGroup,
+  linkUserToGroup,
+  userHasCreditGroup,
+  syncGroupMembers,
+  linkUserToAllGroupsIfMember,
+} from "@/lib/groups";
 import {
   parseJobCommand,
   postJob,
@@ -176,7 +182,13 @@ async function handleTextMessage(event) {
 
 async function handleJoin(event) {
   if (event.source.type !== "group") return;
-  await getOrCreateGroup(event.source.groupId); // ลงทะเบียนกลุ่ม+ดึงชื่อกลุ่มทันทีตั้งแต่บอทถูกเชิญเข้า
+  const group = await getOrCreateGroup(event.source.groupId); // ลงทะเบียนกลุ่ม+ดึงชื่อกลุ่มทันทีตั้งแต่บอทถูกเชิญเข้า
+  try {
+    // ดึงรายชื่อสมาชิกเดิมที่แอดเพื่อนบอทไว้แล้วมาผูกกลุ่มให้ทันที ไม่ต้องรอให้พิมพ์อะไรก่อน
+    await syncGroupMembers(group);
+  } catch (err) {
+    // ไม่ให้กระทบข้อความต้อนรับถ้าดึงรายชื่อไม่สำเร็จ
+  }
   const guideUrl = process.env.APP_URL ? `${process.env.APP_URL}/guide` : null;
   await replyMessage(event.replyToken, [buildWelcomeMessage(guideUrl)]);
 }
@@ -184,6 +196,13 @@ async function handleJoin(event) {
 // มีคนเพิ่มเพื่อนบอทเป็นการส่วนตัว พาไปกรอกข้อมูลส่วนตัวทันที
 async function handleFollow(event) {
   const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
+
+  try {
+    // เช็คว่าเขาเป็นสมาชิกกลุ่มที่มีบอทอยู่แล้วบ้างมั้ย ถ้าใช่ผูกให้ทันทีตั้งแต่แอดเพื่อน ไม่ต้องรอพิมพ์ในกลุ่มก่อน
+    await linkUserToAllGroupsIfMember(user.id, event.source.userId);
+  } catch (err) {
+    // ไม่ให้กระทบข้อความต้อนรับถ้าเช็คไม่สำเร็จ
+  }
   const url = profileFormUrl();
   const creditModuleEnabled = await userHasCreditGroup(user.id);
   const creditLine = isNew

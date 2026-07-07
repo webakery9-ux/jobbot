@@ -323,6 +323,24 @@ function GroupRow({ group, onUpdated, onDeleted }) {
     }
   }
 
+  async function syncMembers() {
+    setSaving(true);
+    setStatus("");
+    const res = await fetch("/api/admin/groups/sync-members", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupId: group.id }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      const data = await res.json();
+      setStatus(`ซิงค์สมาชิกแล้ว (${data.memberCount} คน)`);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setStatus(`ผิดพลาด: ${data.error || "unknown"}`);
+    }
+  }
+
   async function deleteGroup(force) {
     setSaving(true);
     setStatus("");
@@ -381,6 +399,9 @@ function GroupRow({ group, onUpdated, onDeleted }) {
         </button>
         <button className="btn secondary" onClick={refreshName} disabled={saving}>
           รีเฟรชชื่อกลุ่ม
+        </button>
+        <button className="btn secondary" onClick={syncMembers} disabled={saving}>
+          ซิงค์สมาชิกกลุ่ม
         </button>
         <button className="btn danger" onClick={() => deleteGroup(false)} disabled={saving}>
           ลบกลุ่มนี้
