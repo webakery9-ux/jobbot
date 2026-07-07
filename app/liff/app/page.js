@@ -180,6 +180,14 @@ const dashboardCache = new Map();
 // แคชข้อความแชทต่องาน กันโหลดใหม่ทุกครั้งที่เข้าหน้าเดิม
 const chatCache = new Map();
 
+// ลบแคชแท็บที่ระบุทิ้ง ให้รอบถัดไปที่เปิดแท็บนั้นโหลดข้อมูลใหม่จริงๆ แทนที่จะโชว์ของเก่าที่ค้างอยู่
+// ใช้หลังโพสต์งาน/รับงานสำเร็จ เพราะ dashboardCache อยู่แค่ในเครื่องตัวเอง เครื่องอื่นไม่มีปัญหานี้อยู่แล้ว
+function invalidateDashboardCache(lineUserId, sections) {
+  for (const section of sections) {
+    dashboardCache.delete(`${lineUserId}:${section}`);
+  }
+}
+
 // เคลียร์จุดแจ้งเตือนแชทยังไม่อ่านทันทีตอนกดเข้าไปดูงาน (ไม่ต้องรอ server ตอบกลับ)
 function clearUnreadOptimistic(lineUserId, jobId) {
   const cacheKey = `${lineUserId}:history`;
@@ -356,6 +364,7 @@ function PostJob({ lineUserId }) {
     setSubmitting(false);
     if (res.ok) {
       const d = await res.json();
+      invalidateDashboardCache(lineUserId, ["jobs", "home", "history"]);
       setStatus({
         ok: true,
         text: d.platformFee > 0 ? `โพสต์งานสำเร็จ! เครดิตคงเหลือ ${d.balance}` : "โพสต์งานสำเร็จ!",
@@ -514,6 +523,7 @@ function BulkPostJob({ lineUserId, groups }) {
     setSubmitting(false);
     if (res.ok) {
       const d = await res.json();
+      invalidateDashboardCache(lineUserId, ["jobs", "home", "history"]);
       setResult(d.failedCount > 0 ? { ok: true, ...d } : null);
       setToast(`โพสต์ (${d.postedCount}) งาน สำเร็จ`);
       setRawText("");
