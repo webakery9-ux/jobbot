@@ -4,12 +4,6 @@ import { getUserGroups } from "@/lib/groups";
 import { pushMessage } from "@/lib/line";
 import { postJob, buildBatchSummaryMessage } from "@/lib/jobs";
 
-function errorLabel(code) {
-  if (code === "insufficient_credit") return "เครดิตไม่พอ";
-  if (code === "invalid_job") return "ข้อมูลไม่ครบ";
-  return "โพสต์ไม่สำเร็จ";
-}
-
 // งานที่โพสต์เป็นชุดไม่ติดตามวิธีจ่ายเงินผ่านระบบ (ผู้เกี่ยวข้องไปตกลงกันเอง) ใส่ค่าคงที่ไว้แค่ให้ field ที่มีอยู่แสดงผลได้
 const BATCH_PAYMENT_METHOD_PLACEHOLDER = "ตามตกลง";
 
@@ -71,14 +65,7 @@ export async function POST(request) {
     await pushMessage(group.line_group_id, [summaryMessage]);
   }
 
-  // แจ้งผู้โพสต์สรุปผลครั้งเดียว (ไม่แยกส่งทีละงาน)
-  const confirmText =
-    `โพสต์สำเร็จ ${succeeded.length} จาก ${jobs.length} งาน` +
-    (failed.length > 0
-      ? `\n\nงานที่โพสต์ไม่สำเร็จ:\n${failed.map((f) => `${f.jobCode}: ${errorLabel(f.error)}`).join("\n")}`
-      : "");
-  await pushMessage(lineUserId, [{ type: "text", text: confirmText }]);
-
+  // ไม่ส่ง DM แจ้งผู้โพสต์แล้ว (ฝั่งแอปโชว์ popup สรุปผลจาก response นี้แทน)
   const updated = await getUserByLineId(lineUserId);
   return NextResponse.json({
     postedCount: succeeded.length,

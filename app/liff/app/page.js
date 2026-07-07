@@ -482,6 +482,12 @@ To: Suvarnabhumi Airport (BKK)
 
 EV-Sedan 400`;
 
+function batchErrorLabel(code) {
+  if (code === "insufficient_credit") return "เครดิตไม่พอ";
+  if (code === "invalid_job") return "ข้อมูลไม่ครบ";
+  return "โพสต์ไม่สำเร็จ";
+}
+
 function BulkPostJob({ lineUserId, groups }) {
   const [groupId, setGroupId] = useState(groups[0]?.id ?? "");
   const [batchCode, setBatchCode] = useState("");
@@ -489,6 +495,7 @@ function BulkPostJob({ lineUserId, groups }) {
   const [rawText, setRawText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const parsed = useMemo(
     () => parseBulkJobsText(rawText, batchCode.trim()),
@@ -512,10 +519,11 @@ function BulkPostJob({ lineUserId, groups }) {
     setSubmitting(false);
     if (res.ok) {
       const d = await res.json();
-      setResult({ ok: true, ...d });
+      setResult(d.failedCount > 0 ? { ok: true, ...d } : null);
+      setToast(`โพสต์ (${d.postedCount}) งาน สำเร็จ`);
       setRawText("");
     } else {
-      setResult({ ok: false, text: "โพสต์ไม่สำเร็จ ลองใหม่อีกครั้ง" });
+      setToast("โพสต์ไม่สำเร็จ ลองใหม่อีกครั้ง");
     }
   }
 
@@ -584,19 +592,27 @@ function BulkPostJob({ lineUserId, groups }) {
         </div>
       )}
 
-      {result && result.ok && (
-        <p className="status ok">
-          โพสต์สำเร็จ {result.postedCount} จาก {result.postedCount + result.failedCount} งาน
-          {result.failedCount > 0 ? " (ดูรายละเอียดที่ส่งไปในแชทส่วนตัว)" : ""}
-        </p>
+      {result?.failedCount > 0 && (
+        <div className="status err">
+          <p style={{ margin: "0 0 6px" }}>
+            โพสต์สำเร็จ {result.postedCount} จาก {result.postedCount + result.failedCount} งาน
+            งานที่ไม่สำเร็จ:
+          </p>
+          {result.failed.map((f) => (
+            <p key={f.jobCode} style={{ margin: 0 }}>
+              {f.jobCode}: {batchErrorLabel(f.error)}
+            </p>
+          ))}
+        </div>
       )}
-      {result && !result.ok && <p className="status err">{result.text}</p>}
 
       <button type="button" className="btn-bulk-submit" disabled={!canSubmit} onClick={submit}>
         {submitting
           ? "กำลังโพสต์..."
           : `โพสต์ทั้งชุด (${parsed.jobs.length} งาน)`}
       </button>
+
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   );
 }
@@ -1831,6 +1847,20 @@ function Loading() {
   );
 }
 
+// ป็อปอัพแจ้งเตือนสั้นๆ หายเองใน 5 วิ หรือกดที่ไหนก็ได้เพื่อปิดก่อน
+function Toast({ message, onDismiss }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+
+  return (
+    <div className="toast-backdrop" onClick={onDismiss}>
+      <div className="toast-box">{message}</div>
+    </div>
+  );
+}
+
 function NeedProfile({ setTab }) {
   return (
     <div className="section center-pad">
@@ -1974,4 +2004,7 @@ const styles = `
   .result-text { text-align: center; font-size: 16px; color: #333; white-space: pre-wrap; margin: 0; }
   .spinner { width: 32px; height: 32px; border: 3px solid #E5E5E5; border-top-color: ${ACCENT}; border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .toast-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 90px; background: transparent; }
+  .toast-box { background: rgba(30,30,30,0.92); color: #fff; padding: 12px 20px; border-radius: 999px; font-size: 14px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.2); animation: toast-in 0.2s ease-out; }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `;
