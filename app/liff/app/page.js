@@ -697,9 +697,7 @@ function OpenJobs({ lineUserId, setTab }) {
       {jobs.map((job) => (
         <div key={job.id} className="job-card">
           {job.is_urgent && <span className="badge">ด่วน</span>}
-          <p className="job-detail">
-            {job.job_code && <span className="job-code">{job.job_code}</span>} {job.detail}
-          </p>
+          <p className="job-detail">{job.detail}</p>
           <p className="job-meta">
             ค่าจ้าง {job.wage} บาท
             {job.requested_vehicle_type ? ` · ${job.requested_vehicle_type}` : ""}
@@ -1913,10 +1911,9 @@ const styles = `
   .tab.active { background: ${ACCENT}; border-color: ${ACCENT}; color: #fff; font-weight: 700; }
   .job-card { background: #fff; border-radius: 14px; padding: 16px; position: relative; box-shadow: 0 1px 6px rgba(0,0,0,0.05); }
   .badge { position: absolute; top: 14px; right: 14px; background: #E24B4A; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
-  .job-detail { font-size: 17px; font-weight: 700; margin: 0 0 6px; color: #222; white-space: pre-wrap; }
-  .job-code { display: inline-block; background: ${ACCENT}; color: #fff; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; margin-right: 4px; vertical-align: middle; }
-  .job-meta { font-size: 14px; color: #444; margin: 0 0 4px; }
-  .job-sub { font-size: 13px; color: #888; margin: 0 0 12px; }
+  .job-detail { font-size: 15px; font-weight: 400; margin: 0 0 6px; color: #222; white-space: pre-wrap; }
+  .job-meta { font-size: 15px; font-weight: 400; color: #222; margin: 0 0 4px; }
+  .job-sub { font-size: 15px; font-weight: 400; color: #222; margin: 0 0 12px; }
   .claim-btn { width: 100%; }
   .subhead { font-size: 15px; font-weight: 700; color: #333; margin: 0; }
   .profile-summary { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; }
