@@ -491,6 +491,21 @@ function SettingsTab() {
   return (
     <div className="card">
       <div className="field-block">
+        <label className="field-label">
+          <input
+            type="checkbox"
+            checked={!!form.creditModuleEnabled}
+            onChange={(e) => setForm({ ...form, creditModuleEnabled: e.target.checked })}
+            style={{ marginRight: 8 }}
+          />
+          เปิดใช้งานโมดูลเครดิต (ยอดเครดิต/หน้าเติมเครดิต/ข้อความเกี่ยวกับเครดิตที่ผู้ใช้เห็นทั้งหมด)
+        </label>
+        <p className="field-hint">
+          ปิดอยู่ = ผู้ใช้จะไม่เห็นเครดิตเลยทุกจุด แต่กลุ่มที่ตั้ง billing mode เป็น "เครดิต" ในแท็บจัดการกลุ่ม
+          จะยังถูกหักเครดิตจริงเบื้องหลังตามปกติ (แค่ไม่แสดงผล)
+        </p>
+      </div>
+      <div className="field-block">
         <label className="field-label">เครดิตฟรีเริ่มต้น (สมาชิกใหม่ทั่วไป)</label>
         <input
           type="number"

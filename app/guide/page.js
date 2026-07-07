@@ -1,10 +1,13 @@
 import "./guide.css";
-import { CREDIT_MODULE_ENABLED } from "@/lib/featureFlags";
+import { isCreditModuleEnabled } from "@/lib/settings";
 
 export const metadata = {
   title: "วิธีใช้งาน JobBotTH",
   description: "คู่มือการใช้งานระบบจ่ายงาน-รับงานอัตโนมัติ JobBotTH",
 };
+
+// ต้อง render ใหม่ทุก request ห้ามแคชแบบ static เพราะเช็คสวิตช์เปิด/ปิดโมดูลเครดิตจาก DB สด
+export const dynamic = "force-dynamic";
 
 function Section({ id, title, children }) {
   return (
@@ -24,11 +27,12 @@ function Step({ n, children }) {
   );
 }
 
-export default function GuidePage() {
+export default async function GuidePage() {
   const basicId = process.env.LINE_BASIC_ID;
   const addFriendUrl = basicId
     ? `https://line.me/R/ti/p/%40${basicId.replace(/^@/, "")}`
     : null;
+  const CREDIT_MODULE_ENABLED = await isCreditModuleEnabled();
 
   return (
     <div className="wrap">

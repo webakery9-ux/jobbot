@@ -20,7 +20,7 @@ import {
   saveJobQuoteToken,
   buildWelcomeMessage,
 } from "@/lib/jobs";
-import { CREDIT_MODULE_ENABLED } from "@/lib/featureFlags";
+import { isCreditModuleEnabled } from "@/lib/settings";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
@@ -73,7 +73,7 @@ async function notifyUser({ user, lineGroupId, messages, fallbackText }) {
 async function handleDirectMessage(event) {
   const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
 
-  if (!CREDIT_MODULE_ENABLED) {
+  if (!(await isCreditModuleEnabled())) {
     await replyMessage(event.replyToken, [
       { type: "text", text: "พิมพ์ /job ในกลุ่มไลน์ที่มีบอทเพื่อเปิดงานได้เลยครับ หรือเปิดเมนูด้านล่างเพื่อใช้งานเมนูอื่นๆ" },
     ]);
@@ -186,6 +186,7 @@ async function handleJoin(event) {
 async function handleFollow(event) {
   const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
   const url = profileFormUrl();
+  const creditModuleEnabled = await isCreditModuleEnabled();
   const creditLine = isNew
     ? `เราแจกเครดิตฟรีให้ ${freeCredit} เครดิตเพื่อลองใช้งาน (เครดิตคงเหลือ: ${user.wallet_balance})`
     : `เครดิตคงเหลือของคุณ: ${user.wallet_balance}`;
@@ -200,7 +201,7 @@ async function handleFollow(event) {
           layout: "vertical",
           contents: [
             { type: "text", text: "🎉 ยินดีต้อนรับสู่ JobBotTH", weight: "bold", size: "md", wrap: true },
-            ...(CREDIT_MODULE_ENABLED
+            ...(creditModuleEnabled
               ? [
                   {
                     type: "text",

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import liff from "@line/liff";
-import { CREDIT_MODULE_ENABLED } from "@/lib/featureFlags";
 
 const ACCENT = "#06C755";
 const VEHICLE_OPTIONS = ["", "เก๋ง", "SUV", "VAN"];
@@ -239,18 +238,19 @@ function formatDurationClient(ms) {
 
 function Home({ setTab, lineUserId }) {
   const { data } = useDashboard(lineUserId, "home");
+  const creditEnabled = !!data?.creditModuleEnabled;
   const items = [
     { key: "post", label: "โพสต์งาน", icon: "＋" },
     { key: "jobs", label: "รับงาน", icon: "💼" },
     { key: "history", label: "ประวัติงาน", icon: "📋" },
     { key: "income", label: "สรุปรายได้", icon: "📊" },
-    ...(CREDIT_MODULE_ENABLED ? [{ key: "credit", label: "เติมเครดิต", icon: "👛" }] : []),
+    ...(creditEnabled ? [{ key: "credit", label: "เติมเครดิต", icon: "👛" }] : []),
     { key: "profile", label: "ข้อมูลส่วนตัว", icon: "👤" },
   ];
   const isLow = data && data.balance <= LOW_CREDIT_THRESHOLD;
   return (
     <div className="section">
-      {CREDIT_MODULE_ENABLED && (
+      {creditEnabled && (
         <div className={`balance-card ${isLow ? "low" : ""}`}>
           <div className="balance-top">
             <span className="balance-label">เครดิตคงเหลือ</span>
@@ -1498,15 +1498,15 @@ function TopupCredit({ lineUserId }) {
   const fileInputRef = useRef(null);
   const promptpayId = process.env.NEXT_PUBLIC_PROMPTPAY_ID;
 
-  if (!CREDIT_MODULE_ENABLED) {
+  if (loading) return <Loading />;
+
+  if (!data?.creditModuleEnabled) {
     return (
       <div className="section center-pad">
         <p className="empty">ระบบเติมเครดิตยังไม่เปิดให้บริการตอนนี้ครับ</p>
       </div>
     );
   }
-
-  if (loading) return <Loading />;
 
   async function handleSlip(e) {
     const file = e.target.files?.[0];
