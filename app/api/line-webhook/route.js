@@ -20,6 +20,7 @@ import {
   saveJobQuoteToken,
   buildWelcomeMessage,
 } from "@/lib/jobs";
+import { CREDIT_MODULE_ENABLED } from "@/lib/featureFlags";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
@@ -71,6 +72,13 @@ async function notifyUser({ user, lineGroupId, messages, fallbackText }) {
 
 async function handleDirectMessage(event) {
   const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
+
+  if (!CREDIT_MODULE_ENABLED) {
+    await replyMessage(event.replyToken, [
+      { type: "text", text: "พิมพ์ /job ในกลุ่มไลน์ที่มีบอทเพื่อเปิดงานได้เลยครับ หรือเปิดเมนูด้านล่างเพื่อใช้งานเมนูอื่นๆ" },
+    ]);
+    return;
+  }
 
   if (isNew) {
     await replyMessage(event.replyToken, [
@@ -192,14 +200,18 @@ async function handleFollow(event) {
           layout: "vertical",
           contents: [
             { type: "text", text: "🎉 ยินดีต้อนรับสู่ JobBotTH", weight: "bold", size: "md", wrap: true },
-            {
-              type: "text",
-              text: creditLine,
-              wrap: true,
-              size: "sm",
-              color: "#555555",
-              margin: "md",
-            },
+            ...(CREDIT_MODULE_ENABLED
+              ? [
+                  {
+                    type: "text",
+                    text: creditLine,
+                    wrap: true,
+                    size: "sm",
+                    color: "#555555",
+                    margin: "md",
+                  },
+                ]
+              : []),
             ...(user.profile_completed
               ? []
               : [

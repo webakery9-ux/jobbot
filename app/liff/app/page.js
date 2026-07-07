@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import liff from "@line/liff";
+import { CREDIT_MODULE_ENABLED } from "@/lib/featureFlags";
 
 const ACCENT = "#06C755";
 const VEHICLE_OPTIONS = ["", "เก๋ง", "SUV", "VAN"];
@@ -243,25 +244,27 @@ function Home({ setTab, lineUserId }) {
     { key: "jobs", label: "รับงาน", icon: "💼" },
     { key: "history", label: "ประวัติงาน", icon: "📋" },
     { key: "income", label: "สรุปรายได้", icon: "📊" },
-    { key: "credit", label: "เติมเครดิต", icon: "👛" },
+    ...(CREDIT_MODULE_ENABLED ? [{ key: "credit", label: "เติมเครดิต", icon: "👛" }] : []),
     { key: "profile", label: "ข้อมูลส่วนตัว", icon: "👤" },
   ];
   const isLow = data && data.balance <= LOW_CREDIT_THRESHOLD;
   return (
     <div className="section">
-      <div className={`balance-card ${isLow ? "low" : ""}`}>
-        <div className="balance-top">
-          <span className="balance-label">เครดิตคงเหลือ</span>
-          {isLow && <span className="balance-alert">⚠️</span>}
+      {CREDIT_MODULE_ENABLED && (
+        <div className={`balance-card ${isLow ? "low" : ""}`}>
+          <div className="balance-top">
+            <span className="balance-label">เครดิตคงเหลือ</span>
+            {isLow && <span className="balance-alert">⚠️</span>}
+          </div>
+          <span className="balance-value">{data ? data.balance : "-"}</span>
+          {data && !isLow && <span className="balance-ok">✓ เพียงพอสำหรับใช้งาน</span>}
+          {isLow && (
+            <button className="balance-warning" onClick={() => setTab("credit")}>
+              เครดิตใกล้หมด แตะเพื่อเติมเครดิต
+            </button>
+          )}
         </div>
-        <span className="balance-value">{data ? data.balance : "-"}</span>
-        {data && !isLow && <span className="balance-ok">✓ เพียงพอสำหรับใช้งาน</span>}
-        {isLow && (
-          <button className="balance-warning" onClick={() => setTab("credit")}>
-            เครดิตใกล้หมด แตะเพื่อเติมเครดิต
-          </button>
-        )}
-      </div>
+      )}
       <div className="grid">
         {items.map((it) => (
           <button key={it.key} className="grid-item" onClick={() => setTab(it.key)}>
@@ -1494,6 +1497,14 @@ function TopupCredit({ lineUserId }) {
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
   const promptpayId = process.env.NEXT_PUBLIC_PROMPTPAY_ID;
+
+  if (!CREDIT_MODULE_ENABLED) {
+    return (
+      <div className="section center-pad">
+        <p className="empty">ระบบเติมเครดิตยังไม่เปิดให้บริการตอนนี้ครับ</p>
+      </div>
+    );
+  }
 
   if (loading) return <Loading />;
 
