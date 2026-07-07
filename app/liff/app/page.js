@@ -100,6 +100,16 @@ export default function DashboardApp() {
   }
 
   function goBack() {
+    // ไม่มีหน้าก่อนหน้าใน stack แปลว่าเข้ามาหน้านี้ตรงๆ (เช่น กดลิงก์จากการ์ดงานในกลุ่ม/แชท)
+    // "หน้าเดิมที่กดเข้ามา" จริงๆ คือหน้าใน LINE ก่อนเปิด LIFF นี้ ต้องปิดหน้าต่าง LIFF ไปเลย ไม่ใช่เด้งไปหน้าแรกของแอป
+    if (tabStack.length === 0) {
+      try {
+        liff.closeWindow();
+      } catch (e) {
+        setTab("home");
+      }
+      return;
+    }
     skipNextPopRef.current = true;
     popTab();
     window.history.back();
