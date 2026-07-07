@@ -508,6 +508,7 @@ function History({ lineUserId, goTo, role, setRole }) {
   if (loading) return <Loading />;
   const posted = data?.posted ?? [];
   const claimed = data?.claimed ?? [];
+  const unreadJobIds = new Set(data?.unreadJobIds ?? []);
   const claimedActive = claimed.filter((c) => !c.released_at);
   const returned = claimed.filter((c) => c.released_at);
 
@@ -600,7 +601,9 @@ function History({ lineUserId, goTo, role, setRole }) {
               className="hist-row hist-row-clickable"
               onClick={() => goTo("job-detail", j.id)}
             >
-              <p className="hist-detail">{j.detail}</p>
+              <p className="hist-detail">
+                {j.detail} {unreadJobIds.has(j.id) && <span className="unread-dot" />}
+              </p>
               <p className="hist-meta">
                 {j.wage} บาท · {j.payment_method} · {statusLabel(j.status)} ·{" "}
                 {j.group?.group_name || "-"}
@@ -622,7 +625,9 @@ function History({ lineUserId, goTo, role, setRole }) {
                 className="hist-row hist-row-clickable"
                 onClick={() => goTo("job-detail", c.job.id)}
               >
-                <p className="hist-detail">{c.job?.detail || "-"}</p>
+                <p className="hist-detail">
+                  {c.job?.detail || "-"} {c.job && unreadJobIds.has(c.job.id) && <span className="unread-dot" />}
+                </p>
                 <p className="hist-meta">
                   {c.job?.wage} บาท · {c.job?.payment_method} · จาก{" "}
                   {c.job?.poster?.display_name || "-"}
@@ -1642,6 +1647,7 @@ const styles = `
   .hist-row-clickable { cursor: pointer; }
   .hist-row-clickable:active { background: #F4F4F4; }
   .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; }
+  .unread-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #E24B4A; vertical-align: middle; }
   .hist-meta { font-size: 13px; color: #777; margin: 0; }
   .hist-date { font-size: 12px; color: #aaa; margin: 4px 0 0; }
   .hist-search { margin-bottom: 4px; }

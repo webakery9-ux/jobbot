@@ -4,6 +4,7 @@ import {
   getChatMessages,
   sendChatMessage,
   resolveUserByLineId,
+  markChatRead,
 } from "@/lib/chat";
 
 export async function GET(request, { params }) {
@@ -24,6 +25,7 @@ export async function GET(request, { params }) {
   }
 
   const messages = await getChatMessages(jobId);
+  await markChatRead(jobId, user.id);
   return NextResponse.json({ job, messages, myUserId: user.id });
 }
 
