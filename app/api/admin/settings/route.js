@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/adminAuth";
 import { supabase } from "@/lib/supabase";
 
-const KEYS = ["signup_free_credit", "vip_signup_credit", "vip_names", "credit_module_enabled"];
+const KEYS = ["signup_free_credit", "vip_signup_credit", "vip_names"];
 
 export async function GET(request) {
   if (!isAdminRequest(request)) {
@@ -17,7 +17,6 @@ export async function GET(request) {
     signupFreeCredit: settings.signup_free_credit ?? "0",
     vipSignupCredit: settings.vip_signup_credit ?? "0",
     vipNames: settings.vip_names ?? "",
-    creditModuleEnabled: settings.credit_module_enabled === "true",
   });
 }
 
@@ -26,13 +25,12 @@ export async function POST(request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { signupFreeCredit, vipSignupCredit, vipNames, creditModuleEnabled } = await request.json();
+  const { signupFreeCredit, vipSignupCredit, vipNames } = await request.json();
 
   const rows = [
     { key: "signup_free_credit", value: String(signupFreeCredit ?? "0") },
     { key: "vip_signup_credit", value: String(vipSignupCredit ?? "0") },
     { key: "vip_names", value: String(vipNames ?? "") },
-    { key: "credit_module_enabled", value: creditModuleEnabled ? "true" : "false" },
   ];
 
   const { error } = await supabase.from("settings").upsert(rows, { onConflict: "key" });

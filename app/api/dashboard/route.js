@@ -5,8 +5,7 @@ import {
   getUserHistory,
   getIncomeSummary,
 } from "@/lib/dashboard";
-import { getUserGroups } from "@/lib/groups";
-import { isCreditModuleEnabled } from "@/lib/settings";
+import { getUserGroups, userHasCreditGroup } from "@/lib/groups";
 
 export async function GET(request) {
   const url = new URL(request.url);
@@ -26,7 +25,7 @@ export async function GET(request) {
     profileCompleted: user.profile_completed,
     balance: Number(user.wallet_balance),
     displayName: user.display_name,
-    creditModuleEnabled: await isCreditModuleEnabled(),
+    creditModuleEnabled: await userHasCreditGroup(user.id),
   };
 
   if (section === "post") {

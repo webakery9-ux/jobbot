@@ -7,7 +7,7 @@ import {
   hasPriorJobActivity,
   shouldSendProfileReminder,
 } from "@/lib/users";
-import { getOrCreateGroup, linkUserToGroup } from "@/lib/groups";
+import { getOrCreateGroup, linkUserToGroup, userHasCreditGroup } from "@/lib/groups";
 import {
   parseJobCommand,
   postJob,
@@ -20,7 +20,6 @@ import {
   saveJobQuoteToken,
   buildWelcomeMessage,
 } from "@/lib/jobs";
-import { isCreditModuleEnabled } from "@/lib/settings";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
@@ -73,7 +72,7 @@ async function notifyUser({ user, lineGroupId, messages, fallbackText }) {
 async function handleDirectMessage(event) {
   const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
 
-  if (!(await isCreditModuleEnabled())) {
+  if (!(await userHasCreditGroup(user.id))) {
     await replyMessage(event.replyToken, [
       { type: "text", text: "พิมพ์ /job ในกลุ่มไลน์ที่มีบอทเพื่อเปิดงานได้เลยครับ หรือเปิดเมนูด้านล่างเพื่อใช้งานเมนูอื่นๆ" },
     ]);
@@ -186,7 +185,7 @@ async function handleJoin(event) {
 async function handleFollow(event) {
   const { user, isNew, freeCredit } = await getOrCreateUser(event.source.userId);
   const url = profileFormUrl();
-  const creditModuleEnabled = await isCreditModuleEnabled();
+  const creditModuleEnabled = await userHasCreditGroup(user.id);
   const creditLine = isNew
     ? `เราแจกเครดิตฟรีให้ ${freeCredit} เครดิตเพื่อลองใช้งาน (เครดิตคงเหลือ: ${user.wallet_balance})`
     : `เครดิตคงเหลือของคุณ: ${user.wallet_balance}`;
