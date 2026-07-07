@@ -9,9 +9,9 @@ const BATCH_PAYMENT_METHOD_PLACEHOLDER = "ตามตกลง";
 
 export async function POST(request) {
   const body = await request.json();
-  const { lineUserId, groupId, batchCode, batchLabelDate, jobs } = body;
+  const { lineUserId, groupId, batchLabelDate, jobs } = body;
 
-  if (!lineUserId || !groupId || !batchCode || !Array.isArray(jobs) || jobs.length === 0) {
+  if (!lineUserId || !groupId || !Array.isArray(jobs) || jobs.length === 0) {
     return NextResponse.json({ error: "missing fields" }, { status: 400 });
   }
 
@@ -61,7 +61,7 @@ export async function POST(request) {
   if (succeeded.length > 0 && group.line_group_id) {
     const mgmt = process.env.NEXT_PUBLIC_MGMT_LIFF_ID;
     const jobsTabUri = mgmt ? `https://liff.line.me/${mgmt}?tab=jobs` : "#";
-    const summaryMessage = buildBatchSummaryMessage(succeeded, batchCode, batchLabelDate, jobsTabUri);
+    const summaryMessage = buildBatchSummaryMessage(succeeded, batchLabelDate, jobsTabUri);
     await pushMessage(group.line_group_id, [summaryMessage]);
   }
 

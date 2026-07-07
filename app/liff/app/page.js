@@ -490,17 +490,13 @@ function batchErrorLabel(code) {
 
 function BulkPostJob({ lineUserId, groups }) {
   const [groupId, setGroupId] = useState(groups[0]?.id ?? "");
-  const [batchCode, setBatchCode] = useState("");
   const [batchLabelDate, setBatchLabelDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [rawText, setRawText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const parsed = useMemo(
-    () => parseBulkJobsText(rawText, batchCode.trim()),
-    [rawText, batchCode]
-  );
+  const parsed = useMemo(() => parseBulkJobsText(rawText), [rawText]);
 
   async function submit() {
     setSubmitting(true);
@@ -511,7 +507,6 @@ function BulkPostJob({ lineUserId, groups }) {
       body: JSON.stringify({
         lineUserId,
         groupId,
-        batchCode: batchCode.trim(),
         batchLabelDate,
         jobs: parsed.jobs,
       }),
@@ -527,8 +522,7 @@ function BulkPostJob({ lineUserId, groups }) {
     }
   }
 
-  const canSubmit =
-    !submitting && groupId && batchCode.trim() && parsed.jobs.length > 0;
+  const canSubmit = !submitting && groupId && parsed.jobs.length > 0;
 
   return (
     <div className="bulk-post">
@@ -541,14 +535,6 @@ function BulkPostJob({ lineUserId, groups }) {
             </option>
           ))}
         </select>
-      </label>
-      <label className="field">
-        <span className="field-label">รหัสชุดงาน (เช่น XJ)</span>
-        <input
-          value={batchCode}
-          placeholder="XJ"
-          onChange={(e) => setBatchCode(e.target.value)}
-        />
       </label>
       <label className="field">
         <span className="field-label">วันที่ให้บริการ (โชว์บนหัวข้อความในกลุ่ม)</span>
@@ -715,12 +701,10 @@ function OpenJobs({ lineUserId, setTab }) {
             {job.job_code && <span className="job-code">{job.job_code}</span>} {job.detail}
           </p>
           <p className="job-meta">
-            ค่าจ้าง {job.wage} บาท · {job.payment_method}
+            ค่าจ้าง {job.wage} บาท
             {job.requested_vehicle_type ? ` · ${job.requested_vehicle_type}` : ""}
           </p>
-          <p className="job-sub">
-            {job.group?.group_name || "กลุ่ม LINE"} · โดย {job.poster?.display_name || "-"}
-          </p>
+          <p className="job-sub">โดย {job.poster?.display_name || "-"}</p>
           <button
             className="claim-btn"
             disabled={claiming === job.id}
