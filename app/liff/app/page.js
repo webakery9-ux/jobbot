@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import liff from "@line/liff";
+import { parseBulkJobsText } from "@/lib/bulkJobParser";
 
 const ACCENT = "#06C755";
 const VEHICLE_OPTIONS = ["", "เก๋ง", "SUV", "VAN"];
@@ -289,6 +290,7 @@ function Home({ setTab, lineUserId }) {
 
 function PostJob({ lineUserId }) {
   const { data, loading } = useDashboard(lineUserId, "post");
+  const [postMode, setPostMode] = useState("single");
   const [form, setForm] = useState({
     groupId: "",
     detail: "",
@@ -314,6 +316,30 @@ function PostJob({ lineUserId }) {
         <p className="empty">
           ยังไม่พบกลุ่มที่คุณสังกัด ลองพิมพ์ /job ในกลุ่มที่มีบอทอย่างน้อย 1 ครั้งก่อนนะครับ
         </p>
+      </div>
+    );
+  }
+
+  const modeTabs = [
+    { key: "single", label: "โพสต์ทีละงาน" },
+    { key: "bulk", label: "โพสต์หลายงานพร้อมกัน" },
+  ];
+
+  if (postMode === "bulk") {
+    return (
+      <div className="section">
+        <div className="tabs">
+          {modeTabs.map((t) => (
+            <button
+              key={t.key}
+              className={`tab ${postMode === t.key ? "active" : ""}`}
+              onClick={() => setPostMode(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <BulkPostJob lineUserId={lineUserId} groups={data.groups} />
       </div>
     );
   }
@@ -344,6 +370,18 @@ function PostJob({ lineUserId }) {
 
   return (
     <form className="section" onSubmit={submit}>
+      <div className="tabs">
+        {modeTabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            className={`tab ${postMode === t.key ? "active" : ""}`}
+            onClick={() => setPostMode(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
       <label className="field">
         <span className="field-label">เลือกกลุ่มที่จะส่งงาน</span>
         <select
@@ -413,6 +451,157 @@ function PostJob({ lineUserId }) {
         {submitting ? "กำลังโพสต์..." : "โพสต์งานเข้ากลุ่ม"}
       </button>
     </form>
+  );
+}
+
+const BULK_PLACEHOLDER = `XH31 - JKJ984565
+2026-07-04 16:20
+รับจากสนามบิน
+Full Name: Carla Chaytor
+Phone Number: +61-481055417
+Flight number: TG476
+No. of passengers: 2
+
+From: Suvarnabhumi Airport (BKK)
+To: State Tower Bangkok
+
+Additional service: Meet & Greet
+EV-SUV 450
+---
+XH32 - JKJ984566
+2026-07-04 05:30
+ไปสนามบิน
+Full Name: John Doe
+Phone Number: 0812345678
+Flight number: TG475
+No. of passengers: 2
+
+From: อุดมสุข
+To: Suvarnabhumi Airport (BKK)
+EV-Sedan 400`;
+
+function BulkPostJob({ lineUserId, groups }) {
+  const [groupId, setGroupId] = useState(groups[0]?.id ?? "");
+  const [batchCode, setBatchCode] = useState("");
+  const [batchLabelDate, setBatchLabelDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paymentMethod, setPaymentMethod] = useState("โอนทันที");
+  const [rawText, setRawText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const parsed = useMemo(
+    () => parseBulkJobsText(rawText, batchCode.trim()),
+    [rawText, batchCode]
+  );
+
+  async function submit() {
+    setSubmitting(true);
+    setResult(null);
+    const res = await fetch("/api/dashboard/post-job-batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lineUserId,
+        groupId,
+        batchCode: batchCode.trim(),
+        batchLabelDate,
+        paymentMethod,
+        jobs: parsed.jobs,
+      }),
+    });
+    setSubmitting(false);
+    if (res.ok) {
+      const d = await res.json();
+      setResult({ ok: true, ...d });
+      setRawText("");
+    } else {
+      setResult({ ok: false, text: "โพสต์ไม่สำเร็จ ลองใหม่อีกครั้ง" });
+    }
+  }
+
+  const canSubmit =
+    !submitting && groupId && batchCode.trim() && parsed.jobs.length > 0;
+
+  return (
+    <div className="bulk-post">
+      <label className="field">
+        <span className="field-label">เลือกกลุ่มที่จะส่งงาน</span>
+        <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.group_name || "กลุ่ม LINE"}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        <span className="field-label">รหัสชุดงาน (เช่น XJ)</span>
+        <input
+          value={batchCode}
+          placeholder="XJ"
+          onChange={(e) => setBatchCode(e.target.value)}
+        />
+      </label>
+      <label className="field">
+        <span className="field-label">วันที่ให้บริการ (โชว์บนหัวข้อความในกลุ่ม)</span>
+        <input
+          type="date"
+          value={batchLabelDate}
+          onChange={(e) => setBatchLabelDate(e.target.value)}
+        />
+      </label>
+      <label className="field">
+        <span className="field-label">วิธีจ่ายเงิน (ใช้กับทุกงานในชุดนี้)</span>
+        <input value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} />
+      </label>
+      <label className="field">
+        <span className="field-label">
+          วางรายละเอียดงานทั้งหมด (คั่นแต่ละงานด้วยบรรทัด <code>---</code> บรรทัดสุดท้ายของแต่ละงานคือ
+          "ประเภทรถ ราคา" เช่น "EV-SUV 450")
+        </span>
+        <textarea
+          className="bulk-textarea"
+          rows={14}
+          value={rawText}
+          placeholder={BULK_PLACEHOLDER}
+          onChange={(e) => setRawText(e.target.value)}
+        />
+      </label>
+
+      {rawText.trim() && (
+        <div className="bulk-preview">
+          <p className="subhead">
+            พรีวิว: พร้อมโพสต์ {parsed.jobs.length} งาน
+            {parsed.errors.length > 0 ? ` · มีปัญหา ${parsed.errors.length} งาน` : ""}
+          </p>
+          {parsed.jobs.map((j) => (
+            <div key={j.jobCode} className="bulk-preview-item ok">
+              <p className="bulk-preview-line">{j.previewLine}</p>
+            </div>
+          ))}
+          {parsed.errors.map((e, i) => (
+            <div key={i} className="bulk-preview-item err">
+              <p className="bulk-preview-line">{e.preview || "(บล็อกว่าง)"}</p>
+              <p className="bulk-preview-error">⚠️ {e.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {result && result.ok && (
+        <p className="status ok">
+          โพสต์สำเร็จ {result.postedCount} จาก {result.postedCount + result.failedCount} งาน
+          {result.failedCount > 0 ? " (ดูรายละเอียดที่ส่งไปในแชทส่วนตัว)" : ""}
+        </p>
+      )}
+      {result && !result.ok && <p className="status err">{result.text}</p>}
+
+      <button type="button" className="btn-bulk-submit" disabled={!canSubmit} onClick={submit}>
+        {submitting
+          ? "กำลังโพสต์..."
+          : `โพสต์ทั้งชุด (${parsed.jobs.length} งาน)`}
+      </button>
+    </div>
   );
 }
 
@@ -510,7 +699,9 @@ function OpenJobs({ lineUserId, setTab }) {
       {jobs.map((job) => (
         <div key={job.id} className="job-card">
           {job.is_urgent && <span className="badge">ด่วน</span>}
-          <p className="job-detail">{job.detail}</p>
+          <p className="job-detail">
+            {job.job_code && <span className="job-code">{job.job_code}</span>} {job.detail}
+          </p>
           <p className="job-meta">
             ค่าจ้าง {job.wage} บาท · {job.payment_method}
             {job.requested_vehicle_type ? ` · ${job.requested_vehicle_type}` : ""}
@@ -1695,7 +1886,14 @@ const styles = `
   .photo-remove { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; }
   .checkbox { display: flex; align-items: center; gap: 8px; font-size: 15px; }
   .checkbox input { width: auto; }
-  button[type="submit"], .claim-btn { padding: 14px; font-size: 16px; font-weight: 700; color: #fff; background: ${ACCENT}; border: none; border-radius: 12px; }
+  button[type="submit"], .claim-btn, .btn-bulk-submit { padding: 14px; font-size: 16px; font-weight: 700; color: #fff; background: ${ACCENT}; border: none; border-radius: 12px; width: 100%; }
+  .bulk-post { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+  .bulk-textarea { font-family: monospace; font-size: 13px; white-space: pre; }
+  .bulk-preview { display: flex; flex-direction: column; gap: 8px; }
+  .bulk-preview-item { background: #fff; border-radius: 10px; padding: 10px 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); border-left: 4px solid ${ACCENT}; }
+  .bulk-preview-item.err { border-left-color: #E24B4A; }
+  .bulk-preview-line { font-size: 13px; white-space: pre-wrap; margin: 0; color: #333; }
+  .bulk-preview-error { font-size: 12px; color: #A32D2D; margin: 6px 0 0; }
   button:disabled { opacity: 0.6; }
   .status { font-size: 14px; padding: 10px 12px; border-radius: 8px; margin: 0; }
   .status.ok { background: #E1F5EE; color: #0F6E56; }
@@ -1705,13 +1903,14 @@ const styles = `
   .tab.active { background: ${ACCENT}; border-color: ${ACCENT}; color: #fff; font-weight: 700; }
   .job-card { background: #fff; border-radius: 14px; padding: 16px; position: relative; box-shadow: 0 1px 6px rgba(0,0,0,0.05); }
   .badge { position: absolute; top: 14px; right: 14px; background: #E24B4A; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
-  .job-detail { font-size: 17px; font-weight: 700; margin: 0 0 6px; color: #222; }
+  .job-detail { font-size: 17px; font-weight: 700; margin: 0 0 6px; color: #222; white-space: pre-wrap; }
+  .job-code { display: inline-block; background: ${ACCENT}; color: #fff; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; margin-right: 4px; vertical-align: middle; }
   .job-meta { font-size: 14px; color: #444; margin: 0 0 4px; }
   .job-sub { font-size: 13px; color: #888; margin: 0 0 12px; }
   .claim-btn { width: 100%; }
   .subhead { font-size: 15px; font-weight: 700; color: #333; margin: 0; }
   .profile-summary { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; }
-  .summary-head { font-size: 14px; font-weight: 700; color: ${ACCENT}; margin: 0 0 2px; }
+  .summary-head { font-size: 14px; font-weight: 700; color: ${ACCENT}; margin: 0 0 2px; white-space: pre-wrap; }
   .summary-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; }
   .summary-row span { color: #888; flex-shrink: 0; }
   .summary-row strong { color: #222; font-weight: 600; text-align: right; }
@@ -1727,7 +1926,7 @@ const styles = `
   .hist-row { position: relative; background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .hist-row-clickable { cursor: pointer; }
   .hist-row-clickable:active { background: #F4F4F4; }
-  .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; padding-right: 18px; }
+  .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; padding-right: 18px; white-space: pre-wrap; }
   .unread-dot {
     position: absolute;
     top: 14px;
