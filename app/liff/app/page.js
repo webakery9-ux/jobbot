@@ -57,24 +57,35 @@ export default function DashboardApp() {
   }
 
   // ไปหน้าใหม่ พร้อมจำหน้าเดิมไว้ใน stack เพื่อให้ปุ่ม "กลับ" ย้อนถูกที่
+  // และ push ประวัติเบราว์เซอร์ไว้ด้วย เพื่อให้ปุ่มกลับของเครื่อง (ฮาร์ดแวร์/สไวป์) ย้อนกลับถูกที่เหมือนกัน
+  // แทนที่จะปิดหน้า LIFF ไปเลย (เพราะแอปนี้ไม่มี URL แยกต่อแท็บ เบราว์เซอร์เลยไม่รู้ว่ามีที่ให้ย้อนกลับ)
   function navigate(nextTab, jobId) {
     setTabStack((s) => [...s, tab]);
     setJobParam(jobId || "");
     setTab(nextTab);
+    window.history.pushState({ tab: nextTab }, "");
   }
 
   function goBack() {
-    setTabStack((s) => {
-      if (s.length === 0) {
-        setTab("home");
-        return s;
-      }
-      const copy = [...s];
-      const prevTab = copy.pop();
-      setTab(prevTab);
-      return copy;
-    });
+    window.history.back();
   }
+
+  useEffect(() => {
+    function onPopState() {
+      setTabStack((s) => {
+        if (s.length === 0) {
+          setTab("home");
+          return s;
+        }
+        const copy = [...s];
+        const prevTab = copy.pop();
+        setTab(prevTab);
+        return copy;
+      });
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   return (
     <div className="wrap">
@@ -136,6 +147,21 @@ function tabTitle(tab) {
 // เก็บผลลัพธ์ล่าสุดของแต่ละแท็บไว้ในหน่วยความจำ (อยู่ได้ตลอดที่หน้า LIFF ยังเปิดอยู่)
 // พอกลับมาแท็บเดิมจะโชว์ข้อมูลเก่าทันที ไม่กระพริบจอโหลด แล้วค่อยรีเฟรชเงียบๆ เบื้องหลัง
 const dashboardCache = new Map();
+
+// แคชข้อความแชทต่องาน กันโหลดใหม่ทุกครั้งที่เข้าหน้าเดิม
+const chatCache = new Map();
+
+// เคลียร์จุดแจ้งเตือนแชทยังไม่อ่านทันทีตอนกดเข้าไปดูงาน (ไม่ต้องรอ server ตอบกลับ)
+function clearUnreadOptimistic(lineUserId, jobId) {
+  const cacheKey = `${lineUserId}:history`;
+  const cached = dashboardCache.get(cacheKey);
+  if (cached?.unreadJobIds?.includes(jobId)) {
+    dashboardCache.set(cacheKey, {
+      ...cached,
+      unreadJobIds: cached.unreadJobIds.filter((id) => id !== jobId),
+    });
+  }
+}
 
 function useDashboard(lineUserId, section) {
   const cacheKey = `${lineUserId}:${section}`;
@@ -599,11 +625,13 @@ function History({ lineUserId, goTo, role, setRole }) {
             <div
               key={j.id}
               className="hist-row hist-row-clickable"
-              onClick={() => goTo("job-detail", j.id)}
+              onClick={() => {
+                clearUnreadOptimistic(lineUserId, j.id);
+                goTo("job-detail", j.id);
+              }}
             >
-              <p className="hist-detail">
-                {j.detail} {unreadJobIds.has(j.id) && <span className="unread-dot" />}
-              </p>
+              {unreadJobIds.has(j.id) && <span className="unread-dot" />}
+              <p className="hist-detail">{j.detail}</p>
               <p className="hist-meta">
                 {j.wage} บาท · {j.payment_method} · {statusLabel(j.status)} ·{" "}
                 {j.group?.group_name || "-"}
@@ -623,11 +651,13 @@ function History({ lineUserId, goTo, role, setRole }) {
               <div
                 key={c.id}
                 className="hist-row hist-row-clickable"
-                onClick={() => goTo("job-detail", c.job.id)}
+                onClick={() => {
+                  if (c.job) clearUnreadOptimistic(lineUserId, c.job.id);
+                  goTo("job-detail", c.job.id);
+                }}
               >
-                <p className="hist-detail">
-                  {c.job?.detail || "-"} {c.job && unreadJobIds.has(c.job.id) && <span className="unread-dot" />}
-                </p>
+                {c.job && unreadJobIds.has(c.job.id) && <span className="unread-dot" />}
+                <p className="hist-detail">{c.job?.detail || "-"}</p>
                 <p className="hist-meta">
                   {c.job?.wage} บาท · {c.job?.payment_method} · จาก{" "}
                   {c.job?.poster?.display_name || "-"}
@@ -1344,7 +1374,7 @@ function JobDetail({ jobId, lineUserId }) {
 }
 
 function ChatBox({ jobId, lineUserId }) {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => chatCache.get(jobId) ?? []);
   const [myUserId, setMyUserId] = useState("");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -1356,7 +1386,15 @@ function ChatBox({ jobId, lineUserId }) {
       const res = await fetch(`/api/chat/${jobId}?lineUserId=${lineUserId}`);
       if (!res.ok || cancelled) return;
       const data = await res.json();
-      setMessages(data.messages ?? []);
+      const fresh = data.messages ?? [];
+      const cached = chatCache.get(jobId);
+      // อัปเดตหน้าจอเฉพาะตอนข้อความเปลี่ยนจริง กันไม่ให้กระพริบ/เลื่อนจอทุก 5 วิเปล่าๆ
+      const changed =
+        !cached ||
+        cached.length !== fresh.length ||
+        cached[cached.length - 1]?.id !== fresh[fresh.length - 1]?.id;
+      chatCache.set(jobId, fresh);
+      if (changed) setMessages(fresh);
       setMyUserId(data.myUserId ?? "");
     }
     poll();
@@ -1383,7 +1421,11 @@ function ChatBox({ jobId, lineUserId }) {
     setSending(false);
     if (res.ok) {
       const data = await res.json();
-      setMessages((prev) => [...prev, data.message]);
+      setMessages((prev) => {
+        const next = [...prev, data.message];
+        chatCache.set(jobId, next);
+        return next;
+      });
       setText("");
     }
   }
@@ -1643,11 +1685,25 @@ const styles = `
   .chat-input-row { display: flex; gap: 8px; margin-top: 10px; }
   .chat-input-row input { flex: 1; }
   .btn-chat-send { background: ${ACCENT}; color: #fff; border: none; border-radius: 8px; padding: 0 16px; font-size: 14px; font-weight: 700; }
-  .hist-row { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .hist-row { position: relative; background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .hist-row-clickable { cursor: pointer; }
   .hist-row-clickable:active { background: #F4F4F4; }
-  .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; }
-  .unread-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #E24B4A; vertical-align: middle; }
+  .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; padding-right: 18px; }
+  .unread-dot {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #06C755;
+    animation: unread-pulse 1.6s ease-out infinite;
+  }
+  @keyframes unread-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(6, 199, 85, 0.55); }
+    70% { box-shadow: 0 0 0 8px rgba(6, 199, 85, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(6, 199, 85, 0); }
+  }
   .hist-meta { font-size: 13px; color: #777; margin: 0; }
   .hist-date { font-size: 12px; color: #aaa; margin: 4px 0 0; }
   .hist-search { margin-bottom: 4px; }
