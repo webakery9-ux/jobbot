@@ -4,6 +4,9 @@ const path = require("path");
 const WIDTH = 2500;
 const ROW_H = 490;
 const HEIGHT = 980;
+const COLS = 3;
+const ROWS = 2;
+const COL_W = [834, 833, 833];
 const CIRCLE_R = 150;
 const TOP_MARGIN = 55;
 const ICON_LABEL_GAP = 85;
@@ -11,27 +14,17 @@ const ACCENT = "#06C755";
 const LABEL_COLOR = "#3C3C3C";
 const DIVIDER = "#BEBEBE";
 
-// แถวบน 3 ปุ่มเท่าเดิม, แถวล่างเหลือ 2 ปุ่ม (ตัด "เติมเครดิต" ออก เพราะตอนนี้ทุกกลุ่มเป็นรายเดือนหมดแล้ว)
-// ปุ่มแถวล่างขยายเต็มความกว้างแทน ไม่ให้มีช่องว่างเหลือ
-const ROWS_CONFIG = [
-  {
-    colWidths: [834, 833, 833],
-    items: [
-      { label: "รับงาน", icon: "briefcase" },
-      { label: "โพสต์งาน", icon: "plus" },
-      { label: "ประวัติงาน", icon: "list" },
-    ],
-  },
-  {
-    colWidths: [1250, 1250],
-    items: [
-      { label: "สรุปรายได้", icon: "chart" },
-      { label: "ข้อมูลส่วนตัว", icon: "user" },
-    ],
-  },
+const items = [
+  { label: "รับงาน", icon: "briefcase" },
+  { label: "โพสต์งาน", icon: "plus" },
+  { label: "ประวัติงาน", icon: "list" },
+  { label: "สรุปรายได้", icon: "chart" },
+  { label: "เติมเครดิต", icon: "wallet" },
+  { label: "ข้อมูลส่วนตัว", icon: "user" },
 ];
 
 function iconPath(icon, cx, cy) {
+  const s = 1; // scale factor, icon drawn around (cx, cy) radius ~55
   switch (icon) {
     case "briefcase":
       return `
@@ -74,13 +67,12 @@ function iconPath(icon, cx, cy) {
 
 function buildSvg() {
   let cellsSvg = "";
-  let dividers = "";
-
-  ROWS_CONFIG.forEach((rowConfig, row) => {
-    let x = 0;
-    const { colWidths, items } = rowConfig;
-    colWidths.forEach((w, col) => {
-      const item = items[col];
+  let x = 0;
+  for (let row = 0; row < ROWS; row++) {
+    x = 0;
+    for (let col = 0; col < COLS; col++) {
+      const w = COL_W[col];
+      const item = items[row * COLS + col];
       const cx = x + w / 2;
       const circleCy = row * ROW_H + TOP_MARGIN + CIRCLE_R;
       const labelY = circleCy + CIRCLE_R + ICON_LABEL_GAP;
@@ -92,19 +84,15 @@ function buildSvg() {
         </g>
         <text x="${cx}" y="${labelY}" text-anchor="middle" font-family="Tahoma, Arial, sans-serif" font-size="68" font-weight="bold" fill="${LABEL_COLOR}">${item.label}</text>
       `;
-
-      // เส้นแบ่งแนวตั้งระหว่างปุ่ม (ไม่ตีเส้นหลังปุ่มสุดท้ายของแถว)
-      if (col < colWidths.length - 1) {
-        const dividerX = x + w;
-        const yStart = row * ROW_H;
-        const yEnd = yStart + ROW_H;
-        dividers += `<line x1="${dividerX}" y1="${yStart}" x2="${dividerX}" y2="${yEnd}" stroke="${DIVIDER}" stroke-width="6"/>`;
-      }
       x += w;
-    });
-  });
+    }
+  }
 
-  // เส้นแบ่งแนวนอนระหว่างแถวบน-ล่าง + ขอบบน-ล่างสุด
+  let dividers = "";
+  dividers += `<line x1="${COL_W[0]}" y1="0" x2="${COL_W[0]}" y2="${ROW_H}" stroke="${DIVIDER}" stroke-width="6"/>`;
+  dividers += `<line x1="${COL_W[0] + COL_W[1]}" y1="0" x2="${COL_W[0] + COL_W[1]}" y2="${ROW_H}" stroke="${DIVIDER}" stroke-width="6"/>`;
+  dividers += `<line x1="${COL_W[0]}" y1="${ROW_H}" x2="${COL_W[0]}" y2="${HEIGHT}" stroke="${DIVIDER}" stroke-width="6"/>`;
+  dividers += `<line x1="${COL_W[0] + COL_W[1]}" y1="${ROW_H}" x2="${COL_W[0] + COL_W[1]}" y2="${HEIGHT}" stroke="${DIVIDER}" stroke-width="6"/>`;
   dividers += `<line x1="0" y1="${ROW_H}" x2="${WIDTH}" y2="${ROW_H}" stroke="${DIVIDER}" stroke-width="6"/>`;
   dividers += `<line x1="0" y1="${HEIGHT - 4}" x2="${WIDTH}" y2="${HEIGHT - 4}" stroke="${DIVIDER}" stroke-width="8"/>`;
   dividers += `<line x1="0" y1="4" x2="${WIDTH}" y2="4" stroke="${DIVIDER}" stroke-width="8"/>`;

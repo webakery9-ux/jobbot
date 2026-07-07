@@ -10,19 +10,18 @@ if (!TOKEN) {
 const mgmt = process.env.NEXT_PUBLIC_MGMT_LIFF_ID;
 const liffBase = `https://liff.line.me/${mgmt}`;
 
-// ตัดปุ่ม "เติมเครดิต" ออก (ตอนนี้ทุกกลุ่มเป็นรายเดือนหมดแล้ว) เหลือ 5 ปุ่ม แถวล่างขยายเต็มความกว้างแทน
-// เมนูเดิม 6 ปุ่ม (พร้อม "เติมเครดิต") สำรองไว้ที่ scripts/richmenu-backup-with-credit/ เผื่อกลับมาใช้ระบบเครดิตอีกครั้ง
 const richMenuDef = {
   size: { width: 2500, height: 980 },
   selected: true,
-  name: "JobBot main menu v10",
+  name: "JobBot main menu v9",
   chatBarText: "เมนู",
   areas: [
     { bounds: { x: 0, y: 0, width: 834, height: 490 }, action: { type: "uri", label: "รับงาน", uri: `${liffBase}?tab=jobs` } },
     { bounds: { x: 834, y: 0, width: 833, height: 490 }, action: { type: "uri", label: "โพสต์งาน", uri: `${liffBase}?tab=post` } },
     { bounds: { x: 1667, y: 0, width: 833, height: 490 }, action: { type: "uri", label: "ประวัติงาน", uri: `${liffBase}?tab=history` } },
-    { bounds: { x: 0, y: 490, width: 1250, height: 490 }, action: { type: "uri", label: "สรุปรายได้", uri: `${liffBase}?tab=income` } },
-    { bounds: { x: 1250, y: 490, width: 1250, height: 490 }, action: { type: "uri", label: "ข้อมูลส่วนตัว", uri: `${liffBase}?tab=profile` } },
+    { bounds: { x: 0, y: 490, width: 834, height: 490 }, action: { type: "uri", label: "สรุปรายได้", uri: `${liffBase}?tab=income` } },
+    { bounds: { x: 834, y: 490, width: 833, height: 490 }, action: { type: "uri", label: "เติมเครดิต", uri: `${liffBase}?tab=credit` } },
+    { bounds: { x: 1667, y: 490, width: 833, height: 490 }, action: { type: "uri", label: "ข้อมูลส่วนตัว", uri: `${liffBase}?tab=profile` } },
   ],
 };
 
