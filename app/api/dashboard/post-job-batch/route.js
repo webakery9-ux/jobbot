@@ -10,18 +10,14 @@ function errorLabel(code) {
   return "โพสต์ไม่สำเร็จ";
 }
 
+// งานที่โพสต์เป็นชุดไม่ติดตามวิธีจ่ายเงินผ่านระบบ (ผู้เกี่ยวข้องไปตกลงกันเอง) ใส่ค่าคงที่ไว้แค่ให้ field ที่มีอยู่แสดงผลได้
+const BATCH_PAYMENT_METHOD_PLACEHOLDER = "ตามตกลง";
+
 export async function POST(request) {
   const body = await request.json();
-  const { lineUserId, groupId, batchCode, batchLabelDate, paymentMethod, jobs } = body;
+  const { lineUserId, groupId, batchCode, batchLabelDate, jobs } = body;
 
-  if (
-    !lineUserId ||
-    !groupId ||
-    !batchCode ||
-    !paymentMethod ||
-    !Array.isArray(jobs) ||
-    jobs.length === 0
-  ) {
+  if (!lineUserId || !groupId || !batchCode || !Array.isArray(jobs) || jobs.length === 0) {
     return NextResponse.json({ error: "missing fields" }, { status: 400 });
   }
 
@@ -49,7 +45,7 @@ export async function POST(request) {
         groupId,
         detail: j.detail,
         wage: wageNum,
-        paymentMethod,
+        paymentMethod: BATCH_PAYMENT_METHOD_PLACEHOLDER,
         isUrgent: false,
         vehicleType: j.vehicleType,
         jobCode: j.jobCode,

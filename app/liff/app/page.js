@@ -466,6 +466,7 @@ From: Suvarnabhumi Airport (BKK)
 To: State Tower Bangkok
 
 Additional service: Meet & Greet
+
 EV-SUV 450
 ---
 XH32 - JKJ984566
@@ -478,13 +479,13 @@ No. of passengers: 2
 
 From: อุดมสุข
 To: Suvarnabhumi Airport (BKK)
+
 EV-Sedan 400`;
 
 function BulkPostJob({ lineUserId, groups }) {
   const [groupId, setGroupId] = useState(groups[0]?.id ?? "");
   const [batchCode, setBatchCode] = useState("");
   const [batchLabelDate, setBatchLabelDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [paymentMethod, setPaymentMethod] = useState("โอนทันที");
   const [rawText, setRawText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -505,7 +506,6 @@ function BulkPostJob({ lineUserId, groups }) {
         groupId,
         batchCode: batchCode.trim(),
         batchLabelDate,
-        paymentMethod,
         jobs: parsed.jobs,
       }),
     });
@@ -549,10 +549,6 @@ function BulkPostJob({ lineUserId, groups }) {
           value={batchLabelDate}
           onChange={(e) => setBatchLabelDate(e.target.value)}
         />
-      </label>
-      <label className="field">
-        <span className="field-label">วิธีจ่ายเงิน (ใช้กับทุกงานในชุดนี้)</span>
-        <input value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} />
       </label>
       <label className="field">
         <span className="field-label">
