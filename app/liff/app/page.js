@@ -1332,6 +1332,82 @@ function JobDetail({ jobId, lineUserId }) {
       {doneClaim?.deliveryPhotoUrl && (
         <img src={doneClaim.deliveryPhotoUrl} alt="delivery" className="photo-preview" />
       )}
+
+      {(currentClaim || doneClaim) && <ChatBox jobId={jobId} lineUserId={lineUserId} />}
+    </div>
+  );
+}
+
+function ChatBox({ jobId, lineUserId }) {
+  const [messages, setMessages] = useState([]);
+  const [myUserId, setMyUserId] = useState("");
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      const res = await fetch(`/api/chat/${jobId}?lineUserId=${lineUserId}`);
+      if (!res.ok || cancelled) return;
+      const data = await res.json();
+      setMessages(data.messages ?? []);
+      setMyUserId(data.myUserId ?? "");
+    }
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [jobId, lineUserId]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function send(e) {
+    e.preventDefault();
+    if (!text.trim() || sending) return;
+    setSending(true);
+    const res = await fetch(`/api/chat/${jobId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineUserId, content: text.trim() }),
+    });
+    setSending(false);
+    if (res.ok) {
+      const data = await res.json();
+      setMessages((prev) => [...prev, data.message]);
+      setText("");
+    }
+  }
+
+  return (
+    <div className="profile-summary">
+      <p className="summary-head">💬 แชท</p>
+      <div className="chat-log">
+        {messages.length === 0 && <p className="empty small">ยังไม่มีข้อความ</p>}
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`chat-bubble-row ${m.sender_id === myUserId ? "me" : ""}`}
+          >
+            <div className="chat-bubble">{m.content}</div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <form className="chat-input-row" onSubmit={send}>
+        <input
+          placeholder="พิมพ์ข้อความ..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <button type="submit" className="btn-chat-send" disabled={sending || !text.trim()}>
+          ส่ง
+        </button>
+      </form>
     </div>
   );
 }
@@ -1554,6 +1630,14 @@ const styles = `
   .summary-row span { color: #888; flex-shrink: 0; }
   .summary-row strong { color: #222; font-weight: 600; text-align: right; }
   .phone-link { color: ${ACCENT}; font-weight: 700; text-decoration: none; }
+  .chat-log { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; padding: 4px 0; }
+  .chat-bubble-row { display: flex; justify-content: flex-start; }
+  .chat-bubble-row.me { justify-content: flex-end; }
+  .chat-bubble { background: #F0F0F0; color: #222; padding: 8px 12px; border-radius: 12px; max-width: 75%; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+  .chat-bubble-row.me .chat-bubble { background: ${ACCENT}; color: #fff; }
+  .chat-input-row { display: flex; gap: 8px; margin-top: 10px; }
+  .chat-input-row input { flex: 1; }
+  .btn-chat-send { background: ${ACCENT}; color: #fff; border: none; border-radius: 8px; padding: 0 16px; font-size: 14px; font-weight: 700; }
   .hist-row { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .hist-row-clickable { cursor: pointer; }
   .hist-row-clickable:active { background: #F4F4F4; }
