@@ -39,6 +39,25 @@ export default function DashboardApp() {
     init();
   }, []);
 
+  // ปุ่มย้อนกลับของเครื่อง (ฮาร์ดแวร์/สไวป์) ต้องผูกกับ useEffect นี้เสมอไม่ว่าจะ render รอบไหน
+  // (ต้องอยู่ก่อน early return ด้านล่าง ไม่งั้นจำนวน hook ที่เรียกแต่ละรอบไม่เท่ากัน ทำให้ React error)
+  useEffect(() => {
+    function onPopState() {
+      setTabStack((s) => {
+        if (s.length === 0) {
+          setTab("home");
+          return s;
+        }
+        const copy = [...s];
+        const prevTab = copy.pop();
+        setTab(prevTab);
+        return copy;
+      });
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   if (error) {
     return (
       <div className="wrap center">
@@ -69,23 +88,6 @@ export default function DashboardApp() {
   function goBack() {
     window.history.back();
   }
-
-  useEffect(() => {
-    function onPopState() {
-      setTabStack((s) => {
-        if (s.length === 0) {
-          setTab("home");
-          return s;
-        }
-        const copy = [...s];
-        const prevTab = copy.pop();
-        setTab(prevTab);
-        return copy;
-      });
-    }
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
 
   return (
     <div className="wrap">
