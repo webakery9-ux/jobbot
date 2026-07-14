@@ -1,12 +1,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { replyMessage, pushMessage } from "@/lib/line";
-import {
-  getOrCreateUser,
-  getUserBalance,
-  hasPriorJobActivity,
-  shouldSendProfileReminder,
-} from "@/lib/users";
+import { getOrCreateUser } from "@/lib/users";
 import {
   getOrCreateGroup,
   linkUserToGroup,
@@ -14,14 +9,7 @@ import {
   syncGroupMembers,
   linkUserToAllGroupsIfMember,
 } from "@/lib/groups";
-import {
-  parseJobCommand,
-  postJob,
-  buildJobCardMessage,
-  buildJobPostedCard,
-  saveJobQuoteToken,
-  buildWelcomeMessage,
-} from "@/lib/jobs";
+import { buildWelcomeMessage } from "@/lib/jobs";
 
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
@@ -40,35 +28,11 @@ function profileFormUrl() {
   return liffId ? `https://liff.line.me/${liffId}` : null;
 }
 
-function profileReminder(user) {
-  if (user.profile_completed) return "";
-  const url = profileFormUrl();
-  return (
-    "\n\n📝 กรุณากรอกข้อมูลส่วนตัวก่อนใช้งานครั้งต่อไปนะครับ" +
-    (url ? `: ${url}` : "")
-  );
-}
-
-function profileRequiredMessage() {
-  const url = profileFormUrl();
-  return (
-    "โปรดกรอกข้อมูลเกี่ยวกับรถและเจ้าของรถ(ครั้งแรกครั้งเดียว)\n" +
-    "เพื่อรับงานและจ่ายงาน\n" +
-    (url ? `กรอกได้ที่: ${url}` : "กรุณาติดต่อแอดมินเพื่อกรอกข้อมูล")
-  );
-}
-
-async function canDoJobAction(user) {
-  if (user.profile_completed) return true;
-  return !(await hasPriorJobActivity(user.id));
-}
-
-// ส่ง DM หา user ถ้าส่งไม่ได้ (ยังไม่แอดเพื่อน) ให้ประกาศ fallback เข้ากลุ่มแทน
-async function notifyUser({ user, lineGroupId, messages, fallbackText }) {
-  const result = await pushMessage(user.line_user_id, messages);
-  if (!result.ok && lineGroupId) {
-    await pushMessage(lineGroupId, [{ type: "text", text: fallbackText }]);
-  }
+function postFormUrl() {
+  const mgmtId = process.env.NEXT_PUBLIC_MGMT_LIFF_ID;
+  if (mgmtId) return `https://liff.line.me/${mgmtId}?tab=post`;
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  return liffId ? `https://liff.line.me/${liffId}` : null;
 }
 
 async function handleDirectMessage(event) {
@@ -76,7 +40,7 @@ async function handleDirectMessage(event) {
 
   if (!(await userHasCreditGroup(user.id))) {
     await replyMessage(event.replyToken, [
-      { type: "text", text: "พิมพ์ /job ในกลุ่มไลน์ที่มีบอทเพื่อเปิดงานได้เลยครับ หรือเปิดเมนูด้านล่างเพื่อใช้งานเมนูอื่นๆ" },
+      { type: "text", text: "เปิดเมนูด้านล่างเพื่อโพสต์งาน/รับงาน หรือใช้เมนูอื่นๆ ได้เลยครับ" },
     ]);
     return;
   }
@@ -100,72 +64,24 @@ async function handleGroupMessage(event) {
   const text = event.message.text.trim();
   if (!event.source.userId) return; // ไม่มี ID มาจริงๆ ทำอะไรไม่ได้ ปล่อยผ่าน
 
-  // ผูก user เข้ากับกลุ่มจากข้อความอะไรก็ได้ ไม่ใช่แค่ /job เพื่อให้รู้ว่าใครอยู่กลุ่มไหนบ้าง
+  // ผูก user เข้ากับกลุ่มจากข้อความอะไรก็ได้ (ไม่ใช่แค่ /job) เพราะ LINE ไม่ให้ดึงรายชื่อสมาชิกกลุ่ม
+  // จากการแอดเพื่อนอย่างเดียวสำหรับบัญชีที่ยัง verified ไม่ได้ นี่เลยเป็นทางเดียวที่รู้ว่าใครอยู่กลุ่มไหนบ้าง
   const { user: poster } = await getOrCreateUser(event.source.userId);
   const group = await getOrCreateGroup(event.source.groupId);
   await linkUserToGroup(poster.id, group.id, "member");
 
+  // ยกเลิกการโพสต์งานผ่านคำสั่งพิมพ์แล้ว ให้ใช้หน้าแอปแทน ถ้ามีคนพิมพ์ /job หรือ /งาน ก็ชี้ทางให้เฉยๆ
   if (!/^\/(job|งาน)/i.test(text)) return; // เงียบไว้ ไม่ตอบข้อความอื่นในกลุ่ม
 
-  if (!(await canDoJobAction(poster))) {
-    if (await shouldSendProfileReminder(poster.id, poster.profile_reminder_sent_at)) {
-      await replyMessage(event.replyToken, [
-        { type: "text", text: profileRequiredMessage() },
-      ]);
-    }
-    return;
-  }
-
-  const parsed = parseJobCommand(text);
-  if (!parsed) {
-    await replyMessage(event.replyToken, [
-      {
-        type: "text",
-        text:
-          "รูปแบบคำสั่งไม่ถูกต้อง ใช้แบบนี้:\n" +
-          "/job รายละเอียดงาน ราคา วิธีจ่ายเงิน\n\n" +
-          "ตัวอย่าง:\n" +
-          "/job ล้างบ้าน 2 ชั้น 500 ทันที\n" +
-          "/job ล้างบ้าน 2 ชั้น/500/โอน24ชม",
-      },
-    ]);
-    return;
-  }
-
-  try {
-    const job = await postJob({
-      posterId: poster.id,
-      groupId: group.id,
-      detail: parsed.detail,
-      wage: parsed.wage,
-      paymentMethod: parsed.payment_method,
-      isUrgent: parsed.isUrgent,
-      vehicleType: parsed.vehicleType,
-    });
-
-    const replyResult = await replyMessage(event.replyToken, [
-      buildJobCardMessage(job, poster),
-    ]);
-    const quoteToken = replyResult?.sentMessages?.[0]?.quoteToken;
-    await saveJobQuoteToken(job.id, quoteToken);
-
-    const balance = await getUserBalance(poster.id);
-    const extraNote = profileReminder(poster).trim() || null;
-    await notifyUser({
-      user: poster,
-      lineGroupId: event.source.groupId,
-      messages: [buildJobPostedCard(job, balance, extraNote)],
-      fallbackText: `เปิดงาน "${job.detail}" สำเร็จครับ${profileReminder(poster)}`,
-    });
-  } catch (err) {
-    if (err.message?.includes("INSUFFICIENT_CREDIT")) {
-      await replyMessage(event.replyToken, [
-        { type: "text", text: "เครดิตของคุณไม่พอสำหรับเปิดงานนี้ กรุณาเติมเครดิต" },
-      ]);
-      return;
-    }
-    throw err;
-  }
+  const url = postFormUrl();
+  await replyMessage(event.replyToken, [
+    {
+      type: "text",
+      text:
+        "ตอนนี้เปิดงานผ่านคำสั่งพิมพ์ในกลุ่มไม่ได้แล้วครับ กรุณาโพสต์งานผ่านหน้าแอปแทน" +
+        (url ? `\n${url}` : ""),
+    },
+  ]);
 }
 
 async function handleTextMessage(event) {
