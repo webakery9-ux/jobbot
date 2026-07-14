@@ -1,14 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserByLineId } from "@/lib/dashboard";
-import {
-  returnJob,
-  getActiveClaimForUser,
-  getJobWithPoster,
-  buildJobCardMessage,
-  saveJobQuoteToken,
-  displayNameOf,
-} from "@/lib/jobs";
-import { pushMessage } from "@/lib/line";
+import { returnJob, getActiveClaimForUser } from "@/lib/jobs";
 
 export async function POST(request) {
   const { lineUserId, jobId } = await request.json();
@@ -24,22 +16,8 @@ export async function POST(request) {
     return NextResponse.json({ error: "claim not found" }, { status: 404 });
   }
 
-  const returnedClaim = await returnJob({ jobId, claimerId: user.id });
-
-  const job = await getJobWithPoster(jobId);
-
-  // ไม่ส่ง DM หาผู้เปิดงานแล้ว ประกาศแค่ในกลุ่มพอ (การ์ดกลุ่มระบุคนคืน/เวลาคืนอยู่แล้ว)
-  // โพสต์การ์ดงานกลับเข้ากลุ่มเดิมให้คนอื่นรับต่อได้ ระบุว่าใครคืนงานเมื่อไหร่
-  if (job.group?.line_group_id) {
-    const result = await pushMessage(job.group.line_group_id, [
-      buildJobCardMessage(job, job.poster, {
-        returnedBy: displayNameOf(user),
-        returnedAt: returnedClaim.released_at,
-      }),
-    ]);
-    const quoteToken = result?.body?.sentMessages?.[0]?.quoteToken;
-    await saveJobQuoteToken(job.id, quoteToken);
-  }
+  // คืนเครดิต+ปล่อยงานกลับเป็น open ในฐานข้อมูล แต่ยังไม่ประกาศเข้ากลุ่ม (พักฟีเจอร์นี้ไว้ก่อนตามที่ตกลง)
+  await returnJob({ jobId, claimerId: user.id });
 
   const updated = await getUserByLineId(lineUserId);
   return NextResponse.json({ ok: true, balance: Number(updated.wallet_balance) });
