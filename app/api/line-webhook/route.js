@@ -86,8 +86,7 @@ async function handleJoin(event) {
   } catch (err) {
     // ไม่ให้กระทบข้อความต้อนรับถ้าดึงรายชื่อไม่สำเร็จ
   }
-  const guideUrl = process.env.APP_URL ? `${process.env.APP_URL}/guide` : null;
-  await replyMessage(event.replyToken, [buildWelcomeMessage(guideUrl, addFriendUrl())]);
+  await replyMessage(event.replyToken, [buildWelcomeMessage(addFriendUrl())]);
 }
 
 // มีคนเพิ่มเพื่อนบอทเป็นการส่วนตัว พาไปกรอกข้อมูลส่วนตัวทันที
