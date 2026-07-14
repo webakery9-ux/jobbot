@@ -28,11 +28,9 @@ function profileFormUrl() {
   return liffId ? `https://liff.line.me/${liffId}` : null;
 }
 
-function postFormUrl() {
-  const mgmtId = process.env.NEXT_PUBLIC_MGMT_LIFF_ID;
-  if (mgmtId) return `https://liff.line.me/${mgmtId}?tab=post`;
-  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
-  return liffId ? `https://liff.line.me/${liffId}` : null;
+function addFriendUrl() {
+  const basicId = process.env.LINE_BASIC_ID;
+  return basicId ? `https://line.me/R/ti/p/%40${basicId.replace(/^@/, "")}` : null;
 }
 
 async function handleDirectMessage(event) {
@@ -60,28 +58,15 @@ async function handleDirectMessage(event) {
   ]);
 }
 
+// บอทไม่ตอบอะไรในกลุ่มเลยไม่ว่าข้อความจะเป็นอะไร (รวมถึง /job, /งาน) แค่ผูก user เข้ากับกลุ่มเงียบๆ เบื้องหลัง
+// เพราะ LINE ไม่ให้ดึงรายชื่อสมาชิกกลุ่มจากการแอดเพื่อนอย่างเดียวสำหรับบัญชีที่ยัง verified ไม่ได้
+// นี่เลยเป็นทางเดียวที่รู้ว่าใครอยู่กลุ่มไหนบ้าง
 async function handleGroupMessage(event) {
-  const text = event.message.text.trim();
   if (!event.source.userId) return; // ไม่มี ID มาจริงๆ ทำอะไรไม่ได้ ปล่อยผ่าน
 
-  // ผูก user เข้ากับกลุ่มจากข้อความอะไรก็ได้ (ไม่ใช่แค่ /job) เพราะ LINE ไม่ให้ดึงรายชื่อสมาชิกกลุ่ม
-  // จากการแอดเพื่อนอย่างเดียวสำหรับบัญชีที่ยัง verified ไม่ได้ นี่เลยเป็นทางเดียวที่รู้ว่าใครอยู่กลุ่มไหนบ้าง
-  const { user: poster } = await getOrCreateUser(event.source.userId);
+  const { user } = await getOrCreateUser(event.source.userId);
   const group = await getOrCreateGroup(event.source.groupId);
-  await linkUserToGroup(poster.id, group.id, "member");
-
-  // ยกเลิกการโพสต์งานผ่านคำสั่งพิมพ์แล้ว ให้ใช้หน้าแอปแทน ถ้ามีคนพิมพ์ /job หรือ /งาน ก็ชี้ทางให้เฉยๆ
-  if (!/^\/(job|งาน)/i.test(text)) return; // เงียบไว้ ไม่ตอบข้อความอื่นในกลุ่ม
-
-  const url = postFormUrl();
-  await replyMessage(event.replyToken, [
-    {
-      type: "text",
-      text:
-        "ตอนนี้เปิดงานผ่านคำสั่งพิมพ์ในกลุ่มไม่ได้แล้วครับ กรุณาโพสต์งานผ่านหน้าแอปแทน" +
-        (url ? `\n${url}` : ""),
-    },
-  ]);
+  await linkUserToGroup(user.id, group.id, "member");
 }
 
 async function handleTextMessage(event) {
@@ -102,7 +87,7 @@ async function handleJoin(event) {
     // ไม่ให้กระทบข้อความต้อนรับถ้าดึงรายชื่อไม่สำเร็จ
   }
   const guideUrl = process.env.APP_URL ? `${process.env.APP_URL}/guide` : null;
-  await replyMessage(event.replyToken, [buildWelcomeMessage(guideUrl)]);
+  await replyMessage(event.replyToken, [buildWelcomeMessage(guideUrl, addFriendUrl())]);
 }
 
 // มีคนเพิ่มเพื่อนบอทเป็นการส่วนตัว พาไปกรอกข้อมูลส่วนตัวทันที
