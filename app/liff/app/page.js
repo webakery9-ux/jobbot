@@ -856,7 +856,7 @@ function History({ lineUserId, goTo, role, setRole }) {
                 goTo("job-detail", j.id);
               }}
             >
-              {unreadJobIds.has(j.id) && <span className="unread-dot" />}
+              {unreadJobIds.has(j.id) && <span className="unread-chat-badge">💬</span>}
               <p className="hist-detail">{j.detail}</p>
               <p className="hist-meta">
                 {j.wage} บาท · {j.payment_method} · {statusLabel(j.status)} ·{" "}
@@ -882,7 +882,7 @@ function History({ lineUserId, goTo, role, setRole }) {
                   goTo("job-detail", c.job.id);
                 }}
               >
-                {c.job && unreadJobIds.has(c.job.id) && <span className="unread-dot" />}
+                {c.job && unreadJobIds.has(c.job.id) && <span className="unread-chat-badge">💬</span>}
                 <p className="hist-detail">{c.job?.detail || "-"}</p>
                 <p className="hist-meta">
                   {c.job?.wage} บาท · {c.job?.payment_method} · จาก{" "}
@@ -1943,15 +1943,20 @@ const styles = `
   .hist-row { position: relative; background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .hist-row-clickable { cursor: pointer; }
   .hist-row-clickable:active { background: #F4F4F4; }
-  .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; padding-right: 18px; white-space: pre-wrap; }
-  .unread-dot {
+  .hist-detail { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #222; padding-right: 32px; white-space: pre-wrap; }
+  .unread-chat-badge {
     position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 10px;
-    height: 10px;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: #06C755;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
     animation: unread-pulse 1.6s ease-out infinite;
   }
   @keyframes unread-pulse {
